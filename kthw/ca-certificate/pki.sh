@@ -33,68 +33,13 @@ on_failure() {
         
 }
 
-gen_key() {
-    if [ -z "$1" ]; then
-        log_error "gen_key - didn't supply a name for the key"
-    fi
-    openssl genrsa -out $1
-	
-    log_success "generated key: $1"
-}
 
-generate_ca() {
-    gen_key "ca.key"
-    ca_cert_name="ca.crt"
-    openssl req -new -x509 -days 365 -config ca.conf -key ca.key -out $ca_cert_name
-
-    log_success  "generated CA certificate: $ca_cert_name"
-}
-
-gen_csr() {
-    local key=$1
-    local name=$2
-    local config=$3
-
-    if [ -z "$key" ] || [ -z "$name" ]; then
-        log_error "gen_csr: Usage: gen_csr <key> <name> <config>"
-        return
-    fi
-
-    openssl req -new -key $key -out $name -config $config
-
-}
-
-function sign_request() {
-	csr=$1
-	ca=$2
-	ca_key=$3
-	name=$4
-	ext_file=$5
-    extensions=$6
-
-	if [ ! -f "$ca" ] || [ ! -f "$ca_key" ] || [ ! -f "$csr" ] || [ -z "$name" ]; then
-		log_error "Usage: sign_request <csr> <ca_certificate> <ca_key> <certificate_name> [extension_file <extensions_section>] "
-		return
-	fi
-
-	if [ -n "$ext_file" ]; then
-		if [ ! -f $ext_file ] || [ -z "$extensions" ]; then
-			echo "extension file wasn't found or extensions section is not specified !"
-			return
-		fi
-
-		openssl x509 -req -days 365 -sha256 -in $csr -CA $ca -CAkey $ca_key \
-		-CAcreateserial -out $name -extfile $ext_file -extensions $extensions
-	else
-		openssl x509 -req -days 365 -sha256 -in $csr -CA $ca -CAkey $ca_key \
-		-CAcreateserial -out $name
-	fi
-}
 
 generate_admin_cert() {
-    gen_key "admin.key"
-    gen_csr "admin.key" "admin.csr" "admin.conf"
-    on_error stop "gen_csr failed!"
+    gen_private_key "admin.key"
+    gen_sign_request "admin.key" "admin.csr" "admin.conf"
+    sign_request "admin.csr" "ca.crt" "ca.key" "admin.crt"
+    on_failure stop "gen_csr failed!"
 }
 
 
@@ -124,8 +69,8 @@ generate_kubelet_client_certs() {
     for node in ${nodes[@]}; do
         mkdir $node;
         sed "s/<node>/$node/;s/<hostname>/${hostnames[$node]}/;s/<ip>/${ips[$node]}/" ../kubelet.conf.template > "tmp/$node.conf"
-        gen_key "$node/kubelet.key"
-        gen_csr "$node/kubelet.key" "tmp/$node.csr" "tmp/$node.conf"
+        gen_private_key "$node/kubelet.key"
+        gen_sign_request "$node/kubelet.key" "tmp/$node.csr" "tmp/$node.conf"
         sign_request "tmp/$node.csr" ../ca.crt ../ca.key "$node/kubelet.crt" "tmp/$node.conf" "v3_ext"
         on_failure stop "generate_kubelet_client_certs: failed generating for $node"
         log_success "Generated PKI for $node"
@@ -136,4 +81,4 @@ generate_kubelet_client_certs() {
     log_success "SUCCESSFULLY generated PKI for kubelets!"
 }
 
-
+source ssl/ssl_functions.sh
