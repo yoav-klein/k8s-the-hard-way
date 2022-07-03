@@ -31,6 +31,10 @@ kube-proxy.crt: ca.crt
 kube-scheduler.crt: ca.crt
 	@source $(PKI_SCRIPT) && generate_kube_scheduler_cert
 
+
+kube-apiserver: ca.crt
+	@source $(PKI_SCRIPT) && generate_kube_apiserver_cert
+
 .PHONY: clean
 clean:
 	rm *.crt *.srl  *.csr *.key -rf kubelet_certs
