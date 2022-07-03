@@ -71,6 +71,14 @@ generate_kube_scheduler_cert() {
     rm "kube-scheduler.csr"
 }
 
+generate_kube_apiserver_cert() {
+    apiserver_ip="172.31.38.58"
+    gen_private_key "kube-apiserver.key"
+    sed "s/<ip>/$apiserver_ip/" kube-apiserver.conf.template > kube-apiserver.conf
+    gen_sign_request "kube-apiserver.key" "kube-apiserver.csr" "kube-apiserver.conf"
+    on_failure stop "Failed generating sign request for kube-apiserver"
+    sign_request "kube-apiserver.csr" "ca.crt" "ca.key" "kube-apiserver.crt" "kube-apiserver.conf" "v3_ext"
+}
 
 
 generate_kubelet_client_certs() {
