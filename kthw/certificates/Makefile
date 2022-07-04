@@ -2,6 +2,7 @@
 PKI_SCRIPT=pki.sh
 SSL_COMMON=ssl/ssl_commons.sh
 SHELL=/bin/bash
+DEPLOYMENT=certificates
 
 define log
     echo -e "\e[32;1m=== $(1) \e[0m"
@@ -16,28 +17,35 @@ ssl:
 ca.crt: ssl
 	@source $(SSL_COMMON) && gen_ca_cert ca.conf
 	@$(call log, "Generated CA certificate")
+	@cp -r $@ $(DEPLOYMENT) 
 
 admin.crt: ca.crt
-	@source $(PKI_SCRIPT) && generate_admin_cert
+	@source $(PKI_SCRIPT) && generate_admin_cert	
+	@cp -r $@ $(DEPLOYMENT) 
 
 kubelet_certs: ca.crt
 	@source $(PKI_SCRIPT) && generate_kubelet_client_certs
+	@cp -r $@ $(DEPLOYMENT) 
 
 kube-controller-manager.crt: ca.crt
 	@source $(PKI_SCRIPT) && generate_kube_ctrl_mgr_cert
+	@cp -r $@ $(DEPLOYMENT) 
 
 kube-proxy.crt: ca.crt
 	@source $(PKI_SCRIPT) && generate_kube_proxy_cert
+	@cp -r $@ $(DEPLOYMENT) 
 
 kube-scheduler.crt: ca.crt
 	@source $(PKI_SCRIPT) && generate_kube_scheduler_cert
+	@cp -r $@ $(DEPLOYMENT) 
 
 kube-apiserver.crt: ca.crt
 	@source $(PKI_SCRIPT) && generate_kube_apiserver_cert
+	@cp -r $@ $(DEPLOYMENT) 
 
 service-accounts.crt: ca.crt
 	@source $(PKI_SCRIPT) && generate_service_accounts_cert
-
+	@cp -r $@ $(DEPLOYMENT) 
 
 .PHONY: clean
 clean:
