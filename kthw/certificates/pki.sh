@@ -33,6 +33,22 @@ on_failure() {
         
 }
 
+####################################
+#
+#   gen_certificate_generic
+#
+# SYNOPSIS:
+#   $ gen_certificate_generic <path_to_cert_file> <ca_certificate> <ca_key> <configuration_file> <extensions>
+#
+# PARAMETERS:
+#   path_to_cert_file - the path of the generated certificate and key, without extension. for example: 'output/kube-apiserver'
+#   ca_certificate    - the CA certificate to sign with
+#   ca_key            - the CA private key
+#   configuration_file- configuraiton file with CN, O, etc.
+#   extensions        - used by the signing operation. This is the extensions section within the configuraiton file
+#
+########################################
+
 gen_certificate_generic() {
     name=$1
     ca_cert=$2
@@ -62,6 +78,7 @@ gen_certificate_generic() {
     rm "$name.csr"
 }
 
+## take the template configuration file and patch it with IPs of the API server
 patch_apiserver_config() {
     template=$1
     destination=$2
@@ -78,21 +95,28 @@ patch_apiserver_config() {
 
 
 
-generate_kubelet_client_certs() {
 ############
 #  
 # generate_kubelet_client_certs
 #
-# DESCRIPTION: generates PKI for kubelet clients to communicate with the API server
+# DESCRIPTION: generates client certificates  for kubelets to communicate with the API server
 # 
 # USAGE:
-#   fill in the workers section in the configuration file with names, IP addresses and hostnames
+#   first, you need to fill in the "workers" field in the JSON configuration file. this function
+#   will read data from there. there, you need to specify for each worker node its IP and hostname
 # 
-# EXPLANATION:
-#   this will generate a private key and certificate for each node kubelet,
-#   with the subjectAltName field populated with IP and hostname.
+#  then, you run
+#   $ generate_kubelet_client_certs <ca_cert> <ca_key> <configuration_file_template> <destination>
+#   
+#   The 'destination' parameter specifies a directory in which all the directories will be created in
 #
-###############
+# OUTPUT:
+#   the function creates a set of directories, one for each kubelet, 
+#   in which it creates a kubelete.cert and kubelet.key files.
+#
+#
+################
+generate_kubelet_client_certs() {
     ca_cert=$1
     ca_key=$2
     conf_template=$3

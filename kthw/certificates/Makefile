@@ -1,3 +1,14 @@
+#######################################
+#
+#	Makefile for generating cluster certificates
+#
+#	each target creates a different certificate+key
+#	the makefile uses the pki.sh script to generate the certificates
+#
+# 	it creates a deployment directory in which all the certificates
+#	are created in
+#
+#####################################
 
 PKI_SCRIPT=pki.sh
 SSL_COMMON=ssl/ssl_commons.sh
@@ -47,6 +58,7 @@ $(DEPLOYMENT)/kube-apiserver.crt: $(DEPLOYMENT)/ca.crt
 	@if [ ! -d tmp ]; then mkdir tmp; fi
 	@source $(PKI_SCRIPT) && patch_apiserver_config $(CONFIG_FILES_BASE)/kube-apiserver.conf.template tmp/kube-apiserver.conf
 	@source $(PKI_SCRIPT) && gen_certificate_generic $(basename $@) $(DEPLOYMENT)/ca.crt $(DEPLOYMENT)/ca.key tmp/kube-apiserver.conf v3_ext
+	@rm -rf tmp
 
 .PHONY: clean
 clean:

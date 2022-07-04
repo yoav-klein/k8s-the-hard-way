@@ -37,3 +37,5 @@ Then, we have a Makefile that will do everything for us, utilizing the `pki.sh` 
 ```
 $ make all
 ```
+
+This will generate a deployment folder with all the required certificates
