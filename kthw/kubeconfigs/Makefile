@@ -1,7 +1,7 @@
 SHELL=/bin/bash
 
 ## File locations
-ROOT_CONFIG_FILE  =data.json
+ROOT_CONFIG_FILE  =../data.json
 UTILS_SCRIPT      =utils.sh
 KUBECONFIG_DIR    =kubeconfigs
 
