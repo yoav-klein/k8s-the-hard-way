@@ -1,0 +1,24 @@
+{
+    "clusterName": "my-cluster",
+    "workers": [
+        {
+            "name": "worker1",
+            "ip": "1.2.3.4",
+            "hostname": "worker1.example.com"
+        },
+        {
+            "name": "worker2",
+            "ip": "4.5.6.7",
+            "hostname": "worker2.example.com"
+        }
+    ],
+    "controllers": [
+        {
+            "name": "master1",
+            "ip": "2.3.4.5",
+            "hostname": "master1.example.com"
+        }
+    ],
+    "apiserverIPs": ["10.96.0.1", "192.168.0.2"]
+    
+}

@@ -68,7 +68,7 @@ gen_certificate_generic() {
     gen_private_key "$name.key"
     gen_sign_request "$name.key" "$name.csr" "$conf_file_path"
     on_failure stop "Failed generating sign request for $name !"
-
+    
     if [ -n "$extensions" ]; then 
         sign_request "$name.csr" $ca_cert $ca_key "$name.crt" $conf_file_path $extensions
     else 
@@ -184,8 +184,8 @@ gen_kubeconfig() {
 }
 
 
-conf_files_base="cert-configs"
-config_json="data.json"
-ssl_commons="ssl/ssl_commons.sh"
+conf_files_base=config_certs # not really necessary here
+config_json=$ROOT_CONFIG_FILE
+ssl_commons=ssl/ssl_commons.sh
 
 source $ssl_commons
