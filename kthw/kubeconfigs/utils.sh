@@ -78,6 +78,3 @@ gen_kubeconfig() {
 }
 
 
-config_json=$ROOT_CONFIG_FILE
-
-#source $ssl_commons
