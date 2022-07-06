@@ -1,10 +1,8 @@
-# Certifiates and Kubeconfigs
+# Certifiates
 ---
 
 In this section, we're generating a bunch of TLS certificates to be used by the different parts
 of the kubernetes cluster.
-
-We're also generating kubeconfigs that will be used by the different parts of the cluster.
 
 
 ## Client Certificates
@@ -29,23 +27,14 @@ So we need to create a certificate for that also.
 
 ## Usage
 ---
-First, fill all the relevant data in `data.json`. This includes the list of worker nodes, the cluster name, 
+We rely on having the `data.json` file in the root directory of `kthw`.  This includes the list of worker nodes, the cluster name, 
 the IP of the API server, etc.
 
 Use the Makefile to generate the certificates:
 ```
-$ make certificates
-```
-
-In order to generate the kubeconfigs, run:
-```
-$ make kubeconfigs
-```
-
-Or, to generate all:
-```
 $ make all
 ```
+
 
 ## Notes
 ---
