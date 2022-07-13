@@ -88,25 +88,27 @@ patch_apiserver_config() {
     
     # take controllers in compact mode into an array
     controllers=$(jq -r -c '.controllers[]' $config_json)
-    cat $destination
+    
     # ugly trick - starting from a high number since we already have a few in the configuration file
+    # for each controller, add a DNS.<i> = <hostname> and IP.<i> = <ip> to the config file
     i=5
-    for controller in $controllers; do        
+    for controller in $controllers; do
         ip=$(echo $controller | jq -r ".ip")
         hostname=$(echo $controller | jq -r ".hostname")
         echo "IP.$i = $ip" >> $destination
         echo "DNS.$i = $hostname" >> $destination
         (( i = $i + 1 ))
     done
+
+    # add the IP and hostname of the api server. relevant in multi-controller clusters
+    # where you have a load balancer
+    # also, add the ClusterIP address of the apiserver
     apiserver_cluster_ip=$(jq -r ".apiServerAddress.clusterIP" $config_json)
     apiserver_ip=$(jq -r ".apiServerAddress.ip" $config_json)
     apiserver_hostname=$(jq -r ".apiServerAddress.hostname" $config_json)
     echo "IP.$i = $apiserver_ip" >> $destination
     echo "DNS.$i = $apiserver_hostname" >> $destination
     echo "IP.$((i + 1)) = $apiserver_cluster_ip" >> $destination
-
-    cat $destination
-    
 }
 
 
