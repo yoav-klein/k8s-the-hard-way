@@ -33,8 +33,10 @@ define log
     echo -e "\e[32;1m=== $(1) \e[0m"
 endef
 
-all: $(CERT_TARGETS)
+all: $(CERT_DIR)  $(CERT_TARGETS)
 
+$(CERT_DIR):
+	mkdir $@
 
 ssl:
 	git clone https://github.com/yoav-klein/ssl
