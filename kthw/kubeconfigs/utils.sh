@@ -1,37 +1,6 @@
 #!/bin/bash
 
-log_warning() {
-    echo "WARNING: $1"
-}
-
-log_success() {
-    echo -e "\e[32;1m=== $1 \e[0m"
-}
-
-
-log_error() {
-    echo -e "\e[31;1m=== $1 \e[0m"
-}
-
-on_failure() {
-    if [ $? = 0 ]; then
-        return
-    fi
-
-    case "$1" in
-       warn)
-           log_warning "$2"
-           ;;
-       stop)
-           log_error "$2"
-           exit 1
-           ;;
-       *)
-           log_error "$2"
-           ;;
-    esac
-        
-}
+source ../lib
 
 gen_kubeconfig() {
     cluster_name=$1
