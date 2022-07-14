@@ -17,7 +17,6 @@ UTILS_SCRIPT       =utils.sh
 CONFIG_FILES_BASE  =cert-configs
 ROOT_CONFIG_FILE   =../data.json
 SSL_COMMON         =ssl/ssl_commons.sh
-CERTIFICATES_OUTPUT           =certificates
 include ../.env
 
 ## Values
@@ -34,13 +33,17 @@ define log
     echo -e "\e[32;1m=== $(1) \e[0m"
 endef
 
-all: $(CERTIFICATES_OUTPUT)  $(CERT_TARGETS)
+
+all: $(CERT_TARGETS)
+
+$(CERT_TARGETS): | $(CERTIFICATES_OUTPUT)
 
 $(CERTIFICATES_OUTPUT):
 	mkdir $@
 
 ssl:
 	git clone https://github.com/yoav-klein/ssl
+
 
 $(CERTIFICATES_OUTPUT)/ca.crt: ssl
 	@source $(SSL_COMMON) && gen_ca_cert $(CERTIFICATES_OUTPUT) $(CONFIG_FILES_BASE)/ca.conf
