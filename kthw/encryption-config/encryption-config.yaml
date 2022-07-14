@@ -7,5 +7,5 @@
         - aescbc:
             keys:
             - name: key1
-                secret: 3ImAeJBDiNLJAcXPMw/t8k8Elz7aVEhvbebWQ8HktXQ=
+                secret: D2MK6zepnsd2Q+GTfdS8twzhJUd30EEe2kZzSCGs7K4=
         - identity: {}
