@@ -11,7 +11,7 @@ function create_initial_cluster_var() {
 
     for i in $(seq 0 $(( $num_controllers - 1 )) ); do
         initial_cluster="${initial_cluster}${server_ips[i]}:2380"
-        if ! (( $num_controllers == $(( i+1 )) )) ; then INITIAL="${initial_cluster},"; fi 
+        if ! (( $num_controllers == $(( i+1 )) )) ; then initial_cluster="${initial_cluster},"; fi 
     done
 }
 
