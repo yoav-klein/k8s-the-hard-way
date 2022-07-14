@@ -1,4 +1,5 @@
 {
+    "machinesUsername": "yoav",
     "clusterName": "my-cluster",
     "workers": [
         {
