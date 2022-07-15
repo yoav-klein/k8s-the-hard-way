@@ -1,4 +1,13 @@
+#!/bin/bash
 
+source ../.env
+
+controllers=($(jq -c ".controllers[]" $ROOT_DATA_FILE))
+echo $controllers
+
+for controller in ${controllers[@]}; do
+    echo $controller
+done
 
 # foreach controller node:
 # 1. scp unit file
