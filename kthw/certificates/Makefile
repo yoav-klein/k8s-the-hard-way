@@ -35,6 +35,7 @@ endef
 
 
 all: $(CERT_TARGETS)
+	source $(KTHW_HOME)/lib && big_success "GENEARTED CERTIFICATES"
 
 $(CERT_TARGETS): | $(CERTIFICATES_OUTPUT)
 
