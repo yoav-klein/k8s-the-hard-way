@@ -14,5 +14,11 @@ sed  "s@{{pwd}}@$(pwd)@" env > .env
 
 ## Configure vim for convinience
 cp -r vim/.vim vim/.vimrc ~
+
+## Disable SSH strict host key checking
+#sudo sed -i -E 's/#[[:space:]]*(StrictHostKeyChecking[[:space:]]*)ask/\1no/' /etc/ssh/ssh_config
+echo "StrictHostKeyChecking no" > ~/.ssh/config
+
+## Install required tools
 sudo apt-get update
 sudo apt-get install -y jq make
