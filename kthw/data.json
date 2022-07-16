@@ -15,14 +15,14 @@
     ],
     "controllers": [
         {
-            "name": "master1",
-            "ip": "2.3.4.5",
-            "hostname": "master1.example.com"
+            "name": "controller1",
+            "ip": "10.0.1.4",
+            "hostname": "controller2-zclaibfbfsdma.germanywestcentral.cloudapp.azure.com"
         },
         {
-            "name": "master2",
-            "ip": "4.5.6.7",
-            "hostname": "master2.example.com"
+            "name": "controller2",
+            "ip": "10.0.1.5",
+            "hostname": "controller2-zclaibfbfsdma.germanywestcentral.cloudapp.azure.com"
         }
     ],
     "apiServerAddress": {
@@ -30,6 +30,9 @@
         "hostname": "lb.example.com",
         "clusterIP": "10.96.0.1"
         
+    },
+    "versions": {
+        "etcd": "v3.5.4"
     }
     
 }
