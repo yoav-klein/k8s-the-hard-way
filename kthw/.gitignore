@@ -1,3 +1,3 @@
 .env
-kthw_ssh_key
-kthw_ssh_key.pub
+kthw*key
+kthw*key.pub
