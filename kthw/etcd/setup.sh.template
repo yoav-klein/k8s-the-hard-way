@@ -11,7 +11,12 @@ clean() {
     if systemctl list-units --full --all -t service | grep etcd; then
         sudo systemctl stop etcd
     fi
-
+ 
+    echo "=== removing old etcd if exists"
+    rm -f /tmp/etcd-${etcd_version}-linux-amd64.tar.gz
+    rm -rf /tmp/etcd-download-test && mkdir -p /tmp/etcd-download-test
+    
+    echo "=== removing old dierctories"
     sudo rm -rf /etc/etcd /var/lib/etcd
     
 }
@@ -21,11 +26,7 @@ install_etcd() {
     local google_url=https://storage.googleapis.com/etcd
     local github_url=https://github.com/etcd-io/etcd/releases/download
     local download_url=${google_url}
-    
-    echo "=== removing old etcd if exists"
-    rm -f /tmp/etcd-${etcd_version}-linux-amd64.tar.gz
-    rm -rf /tmp/etcd-download-test && mkdir -p /tmp/etcd-download-test
-    
+   
     echo "=== downloading etcd"
     curl -L ${download_url}/${etcd_version}/etcd-${etcd_version}-linux-amd64.tar.gz -o /tmp/etcd-${etcd_version}-linux-amd64.tar.gz
     
