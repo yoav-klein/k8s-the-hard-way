@@ -112,3 +112,9 @@ test() {
 clean() {
     rm *.etcd.service  setup.sh
 }
+
+
+test_fail() {
+
+    return 1
+}
