@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+
+source ../lib
 source ../.env
 
 username=$(jq -r ".machinesUsername" $ROOT_DATA_FILE)
@@ -19,13 +22,18 @@ copy_files_to_controllers() {
         scp -i $SSH_PRIVATE_KEY $CERTIFICATES_OUTPUT/kube-apiserver.crt "$username@$ip:~/k8s/etcd/"
         scp -i $SSH_PRIVATE_KEY $CERTIFICATES_OUTPUT/kube-apiserver.key "$username@$ip:~/k8s/etcd/"
         scp -i $SSH_PRIVATE_KEY ./setup.sh "$username@$ip:~/k8s/etcd"
+
+        log_success "ETCD:: copied files to $name"
     done
 }
 
 run_setup() {
     for controller in ${controllers[@]}; do
         ip=$(echo $controller | jq -r ".ip")
+        name=$(echo $controller | jq -r ".name")
         ssh -i $SSH_PRIVATE_KEY "$username@$ip" ~/k8s/etcd/setup.sh
+
+        log_success "ETCD:: ran ETCD on $name"
     done
 }
 

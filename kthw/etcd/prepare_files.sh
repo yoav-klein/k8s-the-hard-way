@@ -41,4 +41,4 @@ patch_setup_script() {
 
 create_initial_cluster_var
 generate_files
-#patch_setup_script
+patch_setup_script

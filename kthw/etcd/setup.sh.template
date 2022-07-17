@@ -5,6 +5,17 @@ set -e
 etcd_home=~/k8s/etcd
 etcd_version={{etcd_version}}
 
+
+clean() {
+    echo "=== stop etcd if running"
+    if systemctl list-units --full --all -t service | grep etcd; then
+        sudo systemctl stop etcd
+    fi
+
+    sudo rm -rf /etc/etcd /var/lib/etcd
+    
+}
+
 install_etcd() {
     # choose either URL
     local google_url=https://storage.googleapis.com/etcd
@@ -54,7 +65,7 @@ test_service() {
     sudo systemctl status etcd
 }
 
-
+clean
 install_etcd
 if ! test_installation; then echo "ETCD INSTALLATION FAILED !"; exit 1; fi
 create_directories
