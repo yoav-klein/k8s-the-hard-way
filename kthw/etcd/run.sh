@@ -1,3 +1,24 @@
 #!/bin/bash
 
-sudo mkdir -p /etc/etcd /var/lib/etcd
+#set -e
+
+source ../lib
+source utils.sh
+
+test_fail
+
+generate_files
+patch_setup_script
+log_success "ETCD:: generated files"
+copy_files_to_controllers
+run_setup_on_nodes
+
+if test; then 
+    big_success "ETCD IS UP" 
+else
+    log_error "ETCD FAILED !"
+fi 
+
+
+
+
