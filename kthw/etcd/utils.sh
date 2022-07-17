@@ -13,16 +13,16 @@ source ../.env
 #####
 
 
-function create_initial_cluster_var() {
+function compose_node_list_var() {
     server_ips=($(jq -r ".controllers[].ip" $ROOT_DATA_FILE))
     controllers_names=($(jq -r ".controllers[].name" $ROOT_DATA_FILE))
 
-    initial_cluster=""
+    etcd_nodes=""
     num_controllers=${#server_ips[@]}
 
     for i in $(seq 0 $(( $num_controllers - 1 )) ); do
-        etcd_nodes="${etcd_nodes}${controllers_names[i]}=https://${server_ips[i]}:2380"
-        if ! (( $num_controllers == $(( i+1 )) )) ; then etcd_nodes="${etcd_nodes},"; fi 
+        initial_cluster="${etcd_nodes}${controllers_names[i]}=https://${server_ips[i]}:2380"
+        if ! (( $num_controllers == $(( i+1 )) )) ; then initial_cluster="${initial_cluster},"; fi 
     done
 }
 
@@ -34,7 +34,7 @@ function create_initial_cluster_var() {
 #################
 
 function generate_files() {
-    create_initial_cluster_var
+    compose_node_list_var
 
     template=etcd.service.template
     controllers=($(jq -c ".controllers[]" $ROOT_DATA_FILE))
@@ -46,7 +46,7 @@ function generate_files() {
         
         sed "s/{{ETCD_NAME}}/$name/" $template  \
             | sed "s/{{INTERNAL_IP}}/$ip/" \
-            | sed "s@{{INITIAL_CLUSTER}}@$initial_cluster@" - > $name.etcd.service
+            | sed "s@{{INITIAL_CLUSTER}}@$etcd_nodes@" - > $name.etcd.service
        
     done
 }

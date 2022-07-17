@@ -1,11 +1,10 @@
 #!/bin/bash
 
-#set -e
+set -e
 
 source ../lib
 source utils.sh
 
-test_fail
 
 generate_files
 patch_setup_script
