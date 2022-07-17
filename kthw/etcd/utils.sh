@@ -21,8 +21,8 @@ function create_initial_cluster_var() {
     num_controllers=${#server_ips[@]}
 
     for i in $(seq 0 $(( $num_controllers - 1 )) ); do
-        initial_cluster="${initial_cluster}${controllers_names[i]}=https://${server_ips[i]}:2380"
-        if ! (( $num_controllers == $(( i+1 )) )) ; then initial_cluster="${initial_cluster},"; fi 
+        etcd_nodes="${etcd_nodes}${controllers_names[i]}=https://${server_ips[i]}:2380"
+        if ! (( $num_controllers == $(( i+1 )) )) ; then etcd_nodes="${etcd_nodes},"; fi 
     done
 }
 
