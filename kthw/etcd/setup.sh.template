@@ -63,7 +63,7 @@ start_service() {
 }
 
 test_service() {
-    sudo systemctl status etcd
+    if ! sudo systemctl is-active etcd; then echo "=== ETCD INSTALLATION FAILED !"; return 1; fi
 }
 
 clean
@@ -73,5 +73,6 @@ create_directories
 copy_certificates
 copy_unit_file
 start_service
+test_service
 
 

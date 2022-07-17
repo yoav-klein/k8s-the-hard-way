@@ -13,7 +13,11 @@ log_success "ETCD:: generated files"
 copy_files_to_controllers
 run_setup_on_nodes
 
-if test; then big_success "ETCD IS UP"; fi 
+if test; then 
+    big_success "ETCD IS UP" 
+else
+    log_error "ETCD FAILED !"
+fi 
 
 
 
