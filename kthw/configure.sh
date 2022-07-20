@@ -19,6 +19,12 @@ cp -r vim/.vim vim/.vimrc ~
 #sudo sed -i -E 's/#[[:space:]]*(StrictHostKeyChecking[[:space:]]*)ask/\1no/' /etc/ssh/ssh_config
 echo "StrictHostKeyChecking no" > ~/.ssh/config
 
+
+## configure git
+git config --global 
+
 ## Install required tools
 sudo apt-get update
 sudo apt-get install -y jq make
+git config --global user.email yoavklein25@gmail.com
+git config --global user.email yoavklein25@gmail.com
