@@ -44,4 +44,21 @@ on_failure() {
         
 }
 
+run_scp() {
+    username=$1
+    machine=$2
+    local_path=$3
+    remote_path=$4
+    private_key=$5
+    
+    if [ -z "$username" ] || [ -z "$machine" ] || \
+       [ -z "$local_path" ] || [ -z "$remote_path" ] || \
+       [ -z "$private_key" ]; then
+           echo "Usage: run_scp <username> <machine> <local_path> <remote_path> <private_key>"
+           return 1
+    fi
+
+    scp -i $private_key "$local_path" "$username@$machine:$remote_path"
+    on_failure stop "scp failed moving $local_path to $machine"
+}
 
