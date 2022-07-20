@@ -6,10 +6,10 @@ source ../lib
 source utils.sh
 
 
-generate_files
-patch_setup_script
+generate_etcd_files
+patch_etcd_setup_script
 log_success "ETCD:: generated files"
-copy_files_to_controllers
+distribute_etcd_files
 run_setup_on_nodes
 
 if test; then 
