@@ -21,8 +21,8 @@ function compose_node_list_var() {
     num_controllers=${#server_ips[@]}
 
     for i in $(seq 0 $(( $num_controllers - 1 )) ); do
-        initial_cluster="${etcd_nodes}${controllers_names[i]}=https://${server_ips[i]}:2380"
-        if ! (( $num_controllers == $(( i+1 )) )) ; then initial_cluster="${initial_cluster},"; fi 
+        etcd_nodes="${etcd_nodes}${controllers_names[i]}=https://${server_ips[i]}:2380"
+        if ! (( $num_controllers == $(( i+1 )) )) ; then etcd_nodes="${etcd_nodes},"; fi 
     done
 }
 
@@ -33,7 +33,7 @@ function compose_node_list_var() {
 #
 #################
 
-function generate_files() {
+function generate_etcd_files() {
     compose_node_list_var
 
     template=etcd.service.template
@@ -51,7 +51,7 @@ function generate_files() {
     done
 }
 
-patch_setup_script() {
+patch_etcd_setup_script() {
     etcd_version=$(jq -r ".versions.etcd" $ROOT_DATA_FILE)
     sed "s/{{etcd_version}}/$etcd_version/" setup.sh.template > setup.sh
     chmod +x setup.sh
@@ -109,7 +109,7 @@ test() {
 }
 
 
-clean() {
+clean_etcd() {
     rm *.etcd.service  setup.sh
 }
 
