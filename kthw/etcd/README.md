@@ -8,14 +8,14 @@ on each controller node.
 
 ## Usage:
 
-The `run.sh` script will do the followings:
-1. Read the list of controllers from the root data file.
-2. For each one, generate a systemd unit file
-3. To each one, copy the systemd unit file, along with the `kube-apiserver` certificate and the CA certificate.
-4. Run the `setup.sh` script on each node.
-5. Run the `test` function to see that ETCD is up.
+The `etcd_manager.sh` manages all the etcd-related operations.
+Basically, in order to have our ETCD up and running, we need to run:
 
-Just run the `run.sh` script.
 ```
-$ ./run.sh
+$ ./etcd_manager.sh create_deployment # will generate all the required files
+$ ./etcd_manager.sh distribute # will copy those files to controller nodes
+$ ./etcd_manager.sh run_on_nodes # will install the service and start it on controller nodes
+$ ./etcd_manager.sh test # test is ETCD is up and running
+
 ```
+
