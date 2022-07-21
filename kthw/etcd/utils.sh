@@ -3,6 +3,9 @@
 source ../lib
 source ../.env
 
+## globals
+username=$(jq -r ".machinesUsername" $ROOT_DATA_FILE)
+controllers=($(jq -c ".controllers[]" $ROOT_DATA_FILE))
 
 ######
 #
@@ -53,13 +56,10 @@ function generate_etcd_files() {
 
 patch_etcd_setup_script() {
     etcd_version=$(jq -r ".versions.etcd" $ROOT_DATA_FILE)
-    sed "s/{{etcd_version}}/$etcd_version/" setup.sh.template > setup.sh
+    sed "s/{{etcd_version}}/$etcd_version/" setup.sh.template | \
+        sed "s/{{NUM_CONTROLLERS}}/${#controllers[@]}/"> setup.sh
     chmod +x setup.sh
 }
-
-
-username=$(jq -r ".machinesUsername" $ROOT_DATA_FILE)
-controllers=($(jq -c ".controllers[]" $ROOT_DATA_FILE))
 
 distribute_etcd_files() {
     for controller in ${controllers[@]}; do
@@ -83,29 +83,32 @@ run_setup_on_nodes() {
     for controller in ${controllers[@]}; do
         ip=$(echo $controller | jq -r ".ip")
         name=$(echo $controller | jq -r ".name")
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip" ~/k8s/etcd/setup.sh
+        ssh -i $SSH_PRIVATE_KEY "$username@$ip" ~/k8s/etcd/setup.sh install
+        on_failure stop "ETCD:: failed installing service on $name"
+
+        ssh -i $SSH_PRIVATE_KEY "$username@$ip" ~/k8s/etcd/setup.sh start
+        on_failure stop "ETCD:: failed starting service on $name"
 
         log_success "ETCD:: ran ETCD on $name"
     done
 }
 
+clean_nodes() {
+    for controller in ${controllers[@]}; do
+        ip=$(echo $controller | jq -r ".ip")
+        name=$(echo $controller | jq -r ".name")
+        ssh -i $SSH_PRIVATE_KEY "$username@$ip" ~/k8s/etcd/setup.sh reset
+
+        log_success "ETCD:: clean up $name"
+    done
+
+}
 
 test() {
-   export ETCD_API=3
-   output=$(etcdctl member list --write-out=json  \
-  --endpoints=https://127.0.0.1:2379 \
-  --cacert=$CERTIFICATES_OUTPUT/ca.crt \
-  --cert=$CERTIFICATES_OUTPUT/kube-apiserver.crt \
-  --key=$CERTIFICATES_OUTPUT/kube-apiserver.key)
-    
-   num_members=$(echo $output | jq ".members | length")
-   expected=$(jq ".controllers | length" $ROOT_DATA_FILE)
+    local first_controller_ip=$(echo ${controllers[0]} | jq -r ".ip")
+    ssh -i $SSH_PRIVATE_KEY "$username@$first_controller_ip" ~/k8s/etcd/setup.sh test 
 
-   if [ "$num_members" = "$expected" ]; then
-       return 0
-   else
-       return 1
-   fi
+    return $?
 }
 
 
@@ -114,7 +117,3 @@ clean_etcd() {
 }
 
 
-test_fail() {
-
-    return 1
-}
