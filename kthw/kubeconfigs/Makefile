@@ -7,7 +7,7 @@ include ../.env
 
 ## Values
 NODES          =$(shell jq -r '.workers[].name' $(ROOT_CONFIG_FILE))
-APISERVER_IP   =$(shell jq '."apiserverIPs"[0]' $(ROOT_CONFIG_FILE))
+APISERVER_IP   =$(shell jq '.apiServerAddress.publicIp' $(ROOT_CONFIG_FILE))
 CLUSTER_NAME   =$(shell jq '.clusterName' $(ROOT_CONFIG_FILE))
 
 ## Targets

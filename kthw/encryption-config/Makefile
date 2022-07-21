@@ -4,7 +4,7 @@ include ../.env
 
 TARGET=$(ENCRYPTION_CONFIG_DIR)/encryption-config.yaml
 
-$(TARGET):
+$(TARGET): utils.sh
 	source utils.sh && generate_file
 
 clean:
