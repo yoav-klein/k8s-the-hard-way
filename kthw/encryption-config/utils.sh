@@ -9,12 +9,12 @@ kind: EncryptionConfig
 resources:
 - resources:
   - secrets
-providers:
-- aescbc:
-    keys:
-    - name: key1
-      secret: $SECRET
-- identity: {}
+  providers:
+  - aescbc:
+     keys:
+     - name: key1
+       secret: $SECRET
+  - identity: {}
 EOF
     
 }
