@@ -71,7 +71,7 @@ patch_apiserver_config() {
     # where you have a load balancer
     # also, add the ClusterIP address of the apiserver
     apiserver_cluster_ip=$(jq -r ".apiServerAddress.clusterIP" $config_json)
-    apiserver_ip=$(jq -r ".apiServerAddress.ip" $config_json)
+    apiserver_ip=$(jq -r ".apiServerAddress.publicIp" $config_json)
     apiserver_hostname=$(jq -r ".apiServerAddress.hostname" $config_json)
     echo "IP.$i = $apiserver_ip" >> $destination
     echo "DNS.$i = $apiserver_hostname" >> $destination

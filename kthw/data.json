@@ -26,7 +26,7 @@
         }
     ],
     "apiServerAddress": {
-        "ip": "2.3.4.5",
+        "publicIp": "2.3.4.5",
         "hostname": "lb.example.com",
         "clusterIP": "10.96.0.1"
         
