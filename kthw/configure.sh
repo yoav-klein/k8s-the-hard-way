@@ -21,10 +21,10 @@ echo "StrictHostKeyChecking no" > ~/.ssh/config
 
 
 ## configure git
-git config --global 
+git config --global user.email yoavklein25@gmail.com
+git config --global user.email yoavklein25@gmail.com
 
 ## Install required tools
 sudo apt-get update
 sudo apt-get install -y jq make
-git config --global user.email yoavklein25@gmail.com
-git config --global user.email yoavklein25@gmail.com
+
