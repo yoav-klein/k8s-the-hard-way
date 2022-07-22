@@ -13,6 +13,7 @@ usage() {
     echo "create_deployment - Generate necessary files to run etcd on nodes"
     echo "distribute        - Distribute the files to the nodes"
     echo "run_on_nodes      - Install and run etcd service on nodes"
+    echo "test              - Test the installation"
     echo "clean_nodes       - Leave no mark of etcd on nodes"
     echo "clean             - Clean deployment files from this directory"
 }
