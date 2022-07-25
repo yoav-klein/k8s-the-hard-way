@@ -1,5 +1,6 @@
 SHELL=/bin/bash
 
+
 ## File locations
 ROOT_CONFIG_FILE  =../data.json
 UTILS_SCRIPT      =utils.sh
@@ -21,36 +22,32 @@ endef
 
 
 all: $(KUBECONFIG_TARGETS)
+	@source $(KTHW_HOME)/lib && big_success "GENERATED KUBECONFIGS"
 
-$(CERTIFICATES_OUTPUT)/kubelets:
-	make -C $(CERTIFICATES_DIR) all
 
 $(CERTIFICATES_OUTPUT)/%.crt:
-	make -C $(CERTIFICATES_DIR) all
+	@make -C $(CERTIFICATES_DIR) $@
 
 $(KUBECONFIGS_OUTPUT)/admin.kubeconfig: $(CERTIFICATES_OUTPUT)/admin.crt
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "kube-admin" \
-		$(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/admin.crt $(CERTIFICATES_OUTPUT)/admin.key
+		$(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt $< $(patsubst $(KUBECONFIGS_OUTPUT)/%.kubeconfig,$(CERTIFICATES_OUTPUT)/%.key,$@)
 
 $(KUBECONFIGS_OUTPUT)/kube-proxy.kubeconfig: $(CERTIFICATES_OUTPUT)/kube-proxy.crt
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:kube-proxy" \
-		$(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt \
-		$(CERTIFICATES_OUTPUT)/kube-proxy.crt $(CERTIFICATES_OUTPUT)/kube-proxy.key
+		$(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/%.kubeconfig,$(CERTIFICATES_OUTPUT)/%.key,$@)
  
 $(KUBECONFIGS_OUTPUT)/kube-controller-manager.kubeconfig: $(CERTIFICATES_OUTPUT)/kube-controller-manager.crt
-	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:kube-controller-manager" "127.0.0.1" \
-		$@ $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/kube-controller-manager.crt \
-		$(CERTIFICATES_OUTPUT)/kube-controller-manager.key
+	source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:kube-controller-manager" "127.0.0.1" \
+		$@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/%.kubeconfig,$(CERTIFICATES_OUTPUT)/%.key,$@)
     
 $(KUBECONFIGS_OUTPUT)/kube-scheduler.kubeconfig: $(CERTIFICATES_OUTPUT)/kube-scheduler.crt
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:kube-scheduler" "127.0.0.1" \
-		$@ $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/kube-scheduler.crt \
-		$(CERTIFICATES_OUTPUT)/kube-scheduler.key
+		$@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/%.kubeconfig,$(CERTIFICATES_OUTPUT)/%.key,$@)
 
-$(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig: $(CERTIFICATES_OUTPUT)/kubelets
+$(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig: $(CERTIFICATES_OUTPUT)/%/kubelet.crt
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:node:$(patsubst $(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig,%,$@)" \
-        $(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt $(patsubst $(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig,$^/%,$@)/kubelet.crt \
-        $(patsubst $(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig,$^/%,$@)/kubelet.crt \
+        $(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig,$(CERTIFICATES_OUTPUT)/%/kubelet.key,$@)
+
 
 .PHONY: clean
 

@@ -32,6 +32,8 @@ gen_certificate_generic() {
     else
         conf_file_path="$conf_files_base/$name.conf"
     fi
+
+    echo "=== generating private key $name.key"
     gen_private_key "$name.key"
     gen_sign_request "$name.key" "$name.csr" "$conf_file_path"
     on_failure stop "Failed generating sign request for $name !"
@@ -45,38 +47,6 @@ gen_certificate_generic() {
     rm "$name.csr"
 }
 
-## take the template configuration file and patch it with IPs of the API server
-patch_apiserver_config() {
-    template=$1
-    destination=$2
-    if [ -z "$template" ] || [ -z "$destination" ]; then log_error "patch_apiserver_config: not enought arguments"; return 1; fi
-    if [ ! -d tmp ]; then mkdir tmp; fi
-    cp $template $destination
-    
-    # take controllers in compact mode into an array
-    controllers=$(jq -r -c '.controllers[]' $config_json)
-    
-    # ugly trick - starting from a high number since we already have a few in the configuration file
-    # for each controller, add a DNS.<i> = <hostname> and IP.<i> = <ip> to the config file
-    i=5
-    for controller in $controllers; do
-        ip=$(echo $controller | jq -r ".ip")
-        hostname=$(echo $controller | jq -r ".hostname")
-        echo "IP.$i = $ip" >> $destination
-        echo "DNS.$i = $hostname" >> $destination
-        (( i = $i + 1 ))
-    done
-
-    # add the IP and hostname of the api server. relevant in multi-controller clusters
-    # where you have a load balancer
-    # also, add the ClusterIP address of the apiserver
-    apiserver_cluster_ip=$(jq -r ".apiServerAddress.clusterIP" $config_json)
-    apiserver_ip=$(jq -r ".apiServerAddress.publicIp" $config_json)
-    apiserver_hostname=$(jq -r ".apiServerAddress.hostname" $config_json)
-    echo "IP.$i = $apiserver_ip" >> $destination
-    echo "DNS.$i = $apiserver_hostname" >> $destination
-    echo "IP.$((i + 1)) = $apiserver_cluster_ip" >> $destination
-}
 
 
 patch_kubelet_config_file() {
@@ -94,12 +64,9 @@ patch_kubelet_config_file() {
     ip=$(echo $node_data | jq -r '.ip')
     hostname=$(echo $node_data | jq -r '.hostname')
     
+    echo $ip $hostname
     sed "s/<node>/$node_name/;s/<hostname>/$hostname/;s/<ip>/$ip/" $conf_template > "$destination/$node_name.conf"
 }
 
-conf_files_base=config_certs # not really necessary here
-config_json=$ROOT_CONFIG_FILE # defined in the Makefile
-ssl_commons=ssl/ssl_commons.sh
-
-source $ssl_commons
+source ssl/ssl_commons.sh
 source ../lib
