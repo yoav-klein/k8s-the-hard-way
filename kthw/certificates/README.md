@@ -1,4 +1,4 @@
-# Certifiates
+# Public Key Infrastructure
 ---
 
 In this section, we're generating a bunch of TLS certificates to be used by the different parts
