@@ -1,6 +1,16 @@
 
 
-
+To do:
+-----
+* Worker nodes
+* Consider creating a systemd library with common functions like install, uninstall,
+    status, etc. for easier management
+* Logging library
+* Consider a copying engine - you write a file that describes what to copy where,
+    and the engine makes sure to perform it - instead of writing it in the 'distribute' function
+* Consider ansible?
+* etcd: test that systemd service is running
+* control-plane: add test
 
 
 Bugs:
