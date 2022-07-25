@@ -1,3 +1,4 @@
 ssl
+tmp
 kubeconfigs/*
 certificates/*
