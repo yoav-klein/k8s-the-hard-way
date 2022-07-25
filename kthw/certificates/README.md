@@ -46,4 +46,4 @@ $ make all
 It is possible to write several IPs for the API server in the `data.json` file. All these IPs will be included as `subjectAlNames` in the certificate of the API server, so that it will be possible to access the API with each of them.
 
 
-![picture](./.attachments/kthw_pki.png)
+![picture](./.attachments/kthw_pki1.png)
