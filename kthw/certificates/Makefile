@@ -27,7 +27,8 @@ CONTROLLERS    =$(shell jq -r '.controllers[].name' $(ROOT_DATA_FILE))
 KUBELET_CERTS =$(patsubst %,%/kubelet.crt,$(NODES))
 ETCD_SERVER_CERTS =$(patsubst %,etcd-server-%.crt,$(CONTROLLERS))
 CERTIFICATES  =ca.crt admin.crt kubelets kube-controller-manager.crt kube-proxy.crt \
-  kube-scheduler.crt service-accounts.crt kube-apiserver.crt apiserver-etcd-client.crt $(KUBELET_CERTS)  $(ETCD_SERVER_CERTS)
+  kube-scheduler.crt service-accounts.crt kube-apiserver.crt apiserver-etcd-client.crt \
+  apiserver-kubelet-client.crt $(KUBELET_CERTS)  $(ETCD_SERVER_CERTS)
 CERT_TARGETS  =$(patsubst %,$(CERTIFICATES_OUTPUT)/%,$(CERTIFICATES))
 
 
@@ -56,23 +57,33 @@ $(CERTIFICATES_OUTPUT)/ca.crt: ssl
 
 $(CERTIFICATES_OUTPUT)/admin.crt: $(CERTIFICATES_OUTPUT)/ca.crt $(CONFIG_FILES_BASE)/admin.conf
 	@$(call echo_title, "generating $@")
-	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/admin.conf
+	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key \
+		$(CONFIG_FILES_BASE)/admin.conf
 
 $(CERTIFICATES_OUTPUT)/kube-controller-manager.crt: $(CERTIFICATES_OUTPUT)/ca.crt $(CONFIG_FILES_BASE)/kube-controller-manager.conf
 	@$(call echo_title, "generating $@")
-	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/kube-controller-manager.conf
+	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key \
+		$(CONFIG_FILES_BASE)/kube-controller-manager.conf
 
 $(CERTIFICATES_OUTPUT)/kube-proxy.crt: $(CERTIFICATES_OUTPUT)/ca.crt $(CONFIG_FILES_BASE)/kube-proxy.conf
 	@$(call echo_title, "generating $@")
-	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/kube-proxy.conf
+	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key \
+		$(CONFIG_FILES_BASE)/kube-proxy.conf
 
 $(CERTIFICATES_OUTPUT)/kube-scheduler.crt: $(CERTIFICATES_OUTPUT)/ca.crt $(CONFIG_FILES_BASE)/kube-proxy.conf
 	@$(call echo_title, "generating $@")
-	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/kube-scheduler.conf
+	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key \
+		$(CONFIG_FILES_BASE)/kube-scheduler.conf
 
 $(CERTIFICATES_OUTPUT)/service-accounts.crt: $(CERTIFICATES_OUTPUT)/ca.crt $(CONFIG_FILES_BASE)/service-accounts.conf
 	@$(call echo_title, "generating $@")
-	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/service-accounts.conf
+	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key \
+	   	$(CONFIG_FILES_BASE)/service-accounts.conf
+
+$(CERTIFICATES_OUTPUT)/apiserver-kubelet-client.crt: $(CERTIFICATES_OUTPUT)/ca.crt $(CONFIG_FILES_BASE)/apiserver-kubelet-client.conf
+	@$(call echo_title, "generating $@")
+	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key \
+		$(CONFIG_FILES_BASE)/apiserver-kubelet-client.conf
 
 
 $(TMP):
