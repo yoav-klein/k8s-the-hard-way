@@ -70,9 +70,9 @@ distribute_etcd_files() {
         ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p ~/k8s/etcd"
        
         run_scp $username $ip "$name.etcd.service" "~/k8s/etcd/etcd.service" $SSH_PRIVATE_KEY
-        run_scp $username $ip "$CERTIFICATES_OUTPUT/ca.crt" "~/k8s/etcd/"  $SSH_PRIVATE_KEY
-        run_scp $username $ip "$CERTIFICATES_OUTPUT/kube-apiserver.crt" "~/k8s/etcd/" $SSH_PRIVATE_KEY
-        run_scp $username $ip "$CERTIFICATES_OUTPUT/kube-apiserver.key" "~/k8s/etcd/" $SSH_PRIVATE_KEY
+        run_scp $username $ip "$CERTIFICATES_OUTPUT/ca-etcd.crt" "~/k8s/etcd/"  $SSH_PRIVATE_KEY
+        run_scp $username $ip "$CERTIFICATES_OUTPUT/etcd-server-${name}.crt" "~/k8s/etcd/etcd-server.crt" $SSH_PRIVATE_KEY
+        run_scp $username $ip "$CERTIFICATES_OUTPUT/etcd-server-${name}.key" "~/k8s/etcd/etcd-server.key" $SSH_PRIVATE_KEY
         run_scp $username $ip "./setup.sh" "~/k8s/etcd/" $SSH_PRIVATE_KEY
         
         log_success "ETCD:: copied files to $name"

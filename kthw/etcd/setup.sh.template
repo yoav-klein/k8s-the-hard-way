@@ -57,9 +57,9 @@ create_directories() {
 }
 
 copy_certificates() {
-    sudo cp $etcd_home/ca.crt /etc/etcd
-    sudo cp $etcd_home/kube-apiserver.crt /etc/etcd
-    sudo cp $etcd_home/kube-apiserver.key /etc/etcd
+    sudo cp $etcd_home/ca-etcd.crt /etc/etcd
+    sudo cp $etcd_home/etcd-server.crt /etc/etcd
+    sudo cp $etcd_home/etcd-server.key /etc/etcd
 }
 
 copy_unit_file() {
@@ -94,9 +94,9 @@ test() {
     export ETCD_API=3
     output=$(etcdctl member list --write-out=json  \
    --endpoints=https://127.0.0.1:2379 \
-   --cacert=$etcd_home/ca.crt \
-   --cert=$etcd_home/kube-apiserver.crt \
-   --key=$etcd_home/kube-apiserver.key)
+   --cacert=$etcd_home/ca-etcd.crt \
+   --cert=$etcd_home/etcd-server.crt \
+   --key=$etcd_home/etcd-server.key)
     
     num_members=$(echo $output | jq ".members | length")
     expected={{NUM_CONTROLLERS}}

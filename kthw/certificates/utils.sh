@@ -50,7 +50,6 @@ patch_apiserver_config() {
     template=$1
     destination=$2
     if [ -z "$template" ] || [ -z "$destination" ]; then log_error "patch_apiserver_config: not enought arguments"; return 1; fi
-    if [ ! -d tmp ]; then mkdir tmp; fi
     cp $template $destination
     
     # take controllers in compact mode into an array
@@ -94,7 +93,23 @@ patch_kubelet_config_file() {
     ip=$(echo $node_data | jq -r '.ip')
     hostname=$(echo $node_data | jq -r '.hostname')
     
-    sed "s/<node>/$node_name/;s/<hostname>/$hostname/;s/<ip>/$ip/" $conf_template > "$destination/$node_name.conf"
+    sed "s/<node>/$node_name/;s/<hostname>/$hostname/;s/<ip>/$ip/" $conf_template > $destination
+}
+
+patch_etcd_config_file() {
+    controller_name=$1
+    template=$2
+    destination=$3
+    root_data_file=$4
+    if [ -z "$controller_name" ] || [ -z "$template" ] || [ -z "$destination" ]; then log_error "patch_apiserver_config: not enought arguments"; return 1; fi
+    
+    # take controllers in compact mode into an array
+    controller_data=$(jq -c ".controllers[] | select(.name | contains(\"$controller_name\"))" $root_data_file)
+    
+    ip=$(echo $controller_data | jq -r '.ip')
+    hostname=$(echo $controller_data | jq -r '.hostname')
+
+    sed "s/<ip>/$ip/;s/<hostname>/$hostname/" $template > $destination
 }
 
 conf_files_base=config_certs # not really necessary here
