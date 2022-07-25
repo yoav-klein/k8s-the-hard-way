@@ -1,0 +1,3 @@
+*.kube-apiserver.service
+kube-controller-manager.service
+setup.sh

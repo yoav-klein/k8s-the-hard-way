@@ -4,10 +4,18 @@
 set -e
 
 cp_home=~/k8s/control-plane
-k8s_version=v1.24.3
+k8s_version={{K8S_VERSION}}
+
+cmd=$1
+
 create_directories() {
     sudo mkdir -p /etc/kubernetes/config
     sudo mkdir -p /var/lib/kubernetes
+}
+
+delete_directories() {
+    sudo rm -rf /etc/kubernetes/
+    sudo rm -rf /var/lib/kubernetes
 }
 
 install_binaries() {
@@ -31,11 +39,20 @@ install_binaries() {
 }
 
 
+delete_binaries() {
+    sudo rm /usr/local/bin/kube*
+}
+
 install_kube_apiserver() {
     sudo cp ${cp_home}/ca.crt /var/lib/kubernetes
     sudo cp ${cp_home}/ca.key /var/lib/kubernetes
     sudo cp ${cp_home}/kube-apiserver.crt /var/lib/kubernetes
     sudo cp ${cp_home}/kube-apiserver.key /var/lib/kubernetes
+    sudo cp ${cp_home}/apiserver-etcd-client.crt /var/lib/kubernetes
+    sudo cp ${cp_home}/apiserver-etcd-client.key /var/lib/kubernetes
+    sudo cp ${cp_home}/apiserver-kubelet-client.crt /var/lib/kubernetes
+    sudo cp ${cp_home}/apiserver-kubelet-client.key /var/lib/kubernetes
+    sudo cp ${cp_home}/service-accounts.crt /var/lib/kubernetes
     sudo cp ${cp_home}/service-accounts.crt /var/lib/kubernetes
     sudo cp ${cp_home}/service-accounts.key /var/lib/kubernetes
     sudo cp ${cp_home}/encryption-config.yaml /var/lib/kubernetes
@@ -63,16 +80,82 @@ install_kube_controller_manager() {
 enable_services() {
     sudo systemctl daemon-reload
     sudo systemctl enable kube-apiserver kube-scheduler kube-controller-manager
-    sudo systemctl start kube-apiserver kube-scheduler kube-controller-manager
+
+    echo "=== enabled control plane services"
 
 }
 
+start_services() {
+    sudo systemctl start kube-apiserver kube-scheduler kube-controller-manager
 
-create_directories
-install_binaries
-install_kube_apiserver
-install_kube_controller_manager
-install_kube_scheduler
-enable_services
+    echo "=== Started control plane services"
+}
 
+stop_services() {
+    sudo systemctl stop kube-apiserver kube-scheduler kube-controller-manager
 
+    echo "=== Stopped control plane services"
+}
+
+disable_services() {
+    sudo systemctl disable kube-apiserver kube-scheduler kube-controller-manager
+
+    echo "=== Disabled control plane services"
+}
+
+uninstall_services() {
+    sudo rm /etc/systemd/system/kube-controller-manager.service
+    sudo rm /etc/systemd/system/kube-apiserver.service
+    sudo rm /etc/systemd/system/kube-scheduler.service
+    sudo systemctl daemon-reload
+
+    echo "=== Uninstalled control plane services"
+
+}
+
+status() {
+    echo "=== kube-apiserver status"
+    sudo systemctl status kube-apiserver
+
+    echo "=== kube-controller-manager status"
+    sudo systemctl status kube-controller-manager
+
+    echo "=== kube-scheduler status"
+    sudo systemctl status kube-scheduler
+}
+
+usage() {
+    echo "Usage:"
+    echo "cp_manager.sh [install, start, stop, uninstall, status, reset]"
+}
+
+case $cmd in
+    install) 
+        create_directories
+        install_binaries
+        install_kube_apiserver
+        install_kube_controller_manager
+        install_kube_scheduler
+        enable_services
+    ;;
+    start) start_services ;;
+    stop) stop_services  ;;
+    uninstall) 
+        disable_services
+        uninstall_services
+        delete_directories
+        delete_binaries
+    ;;
+    status)
+        status
+    ;;
+    reset) 
+        stop_services
+        disable_services
+        uninstall_services
+        delete_directories    
+        delete_binaries
+    ;;
+    *)
+        usage
+esac

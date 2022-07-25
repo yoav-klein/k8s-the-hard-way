@@ -1,6 +1,8 @@
 {
     "machinesUsername": "yoav",
     "clusterName": "my-cluster",
+    "clusterCidr": "10.200.0.0/16",
+    "serviceIpRange": "10.96.0.0/24",
     "workers": [
         {
             "name": "worker1",
@@ -17,22 +19,23 @@
         {
             "name": "controller1",
             "ip": "10.0.1.4",
-            "hostname": "controller2-zclaibfbfsdma.germanywestcentral.cloudapp.azure.com"
+            "hostname": "controller1-rbykmiy64dfg4.germanywestcentral.cloudapp.azure.com"
         },
         {
             "name": "controller2",
             "ip": "10.0.1.5",
-            "hostname": "controller2-zclaibfbfsdma.germanywestcentral.cloudapp.azure.com"
+            "hostname": "controller2-rbykmiy64dfg4.germanywestcentral.cloudapp.azure.com"
         }
     ],
     "apiServerAddress": {
-        "publicIp": "10.0.1.4",
+        "publicIp": "20.113.40.191",
         "hostname": "kthw-lb-4nwchxqhfqc2e.germanywestcentral.cloudapp.azure.com",
         "clusterIP": "10.96.0.1"
         
     },
     "versions": {
-        "etcd": "v3.5.4"
+        "etcd": "v3.5.4",
+        "kubernetes": "v1.24.3"
     }
     
 }
