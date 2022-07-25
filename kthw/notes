@@ -20,4 +20,17 @@ kubectl in all the controller machines, but we need it
 to generate the kubeconfigs
 
 
+Deployment process:
+--------
+When we come to deploy on the nodes, we basically do the following steps:
+- install prerequisites (check if fulfilled, if not install)
+- scp files (service files, certificates, kubeconfigs, setup script, etc.)
+- copy files to correct location (setup script?)
+- install systemd service
+- run systemd service
 
+We want to allow the user at any moment:
+- stop the services
+- uninstall the services
+- prune (delete everything we've copied)
+- check status
