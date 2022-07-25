@@ -9,7 +9,7 @@ We generate 2 CAs:
 * kubernetes-ca - used to sign all the certificates in the cluster
 * etcd-ca - used to sign all the etcd-related certificates
 
-## Client Certificates
+## Certificates
 First, we generate a CA certificate that will be used across the cluster.
 Then, we generate the certificates.
 
@@ -30,6 +30,11 @@ as the `peer-certificate`. Signed by the etcd-ca
 Kubernetes uses a key pair to generate service account tokens.
 So we need to create a certificate for that also.
 
+## Graphical view
+
+![picture](./.attachments/kthw_pki1.png)
+
+
 ## Usage
 ---
 We rely on having the `data.json` file in the root directory of `kthw`.  This includes the list of worker nodes, the cluster name, 
@@ -46,4 +51,3 @@ $ make all
 It is possible to write several IPs for the API server in the `data.json` file. All these IPs will be included as `subjectAlNames` in the certificate of the API server, so that it will be possible to access the API with each of them.
 
 
-![picture](./.attachments/kthw_pki1.png)
