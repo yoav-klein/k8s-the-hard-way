@@ -27,7 +27,7 @@
     ],
     "apiServerAddress": {
         "publicIp": "10.0.1.4",
-        "hostname": "lb.example.com",
+        "hostname": "kthw-lb-4nwchxqhfqc2e.germanywestcentral.cloudapp.azure.com",
         "clusterIP": "10.96.0.1"
         
     },

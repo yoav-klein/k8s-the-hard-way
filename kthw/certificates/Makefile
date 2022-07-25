@@ -28,8 +28,11 @@ CERTIFICATES  =ca.crt admin.crt kubelets kube-controller-manager.crt kube-proxy.
   kube-scheduler.crt service-accounts.crt kube-apiserver.crt $(KUBELET_CERTS)
 CERT_TARGETS  =$(patsubst %,$(CERTIFICATES_OUTPUT)/%,$(CERTIFICATES))
 
-define log
-    echo -e "\e[32;1m=== $(1) \e[0m"
+TITLE=\e[0;44m
+RESET=\e[0m
+
+define echo_title
+    echo -e "$(TITLE)=== $(1) $(RESET)"
 endef
 
 all: $(CERT_TARGETS)
@@ -45,22 +48,27 @@ ssl:
 
 
 $(CERTIFICATES_OUTPUT)/ca.crt: ssl
+	@$(call echo_title, "generating $@")
 	@source $(SSL_COMMON) && gen_ca_cert $(CERTIFICATES_OUTPUT) $(CONFIG_FILES_BASE)/ca.conf
-	@$(call log, "Generated CA certificate")
 
 $(CERTIFICATES_OUTPUT)/admin.crt: $(CERTIFICATES_OUTPUT)/ca.crt
-	source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/admin.conf
+	@$(call echo_title, "generating $@")
+	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/admin.conf
 
 $(CERTIFICATES_OUTPUT)/kube-controller-manager.crt: $(CERTIFICATES_OUTPUT)/ca.crt
+	@$(call echo_title, "generating $@")
 	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/kube-controller-manager.conf
 
 $(CERTIFICATES_OUTPUT)/kube-proxy.crt: $(CERTIFICATES_OUTPUT)/ca.crt
+	@$(call echo_title, "generating $@")
 	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/kube-proxy.conf
 
 $(CERTIFICATES_OUTPUT)/kube-scheduler.crt: $(CERTIFICATES_OUTPUT)/ca.crt
+	@$(call echo_title, "generating $@")
 	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/kube-scheduler.conf
 
 $(CERTIFICATES_OUTPUT)/service-accounts.crt: $(CERTIFICATES_OUTPUT)/ca.crt
+	@$(call echo_title, "generating $@")
 	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $(CONFIG_FILES_BASE)/service-accounts.conf
 
 
@@ -71,7 +79,8 @@ $(TMP):
 
 # target to create kube-apiserver.crt
 $(CERTIFICATES_OUTPUT)/kube-apiserver.crt: $(CERTIFICATES_OUTPUT)/ca.crt $(TMP)/kube-apiserver.conf
-		@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key tmp/kube-apiserver.conf v3_ext
+	@$(call echo_title, "generating $@")
+	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key tmp/kube-apiserver.conf v3_ext
 
 $(TMP)/kube-apiserver.conf: $(ROOT_DATA_FILE) | $(TMP)
 	@ROOT_CONFIG_FILE=$(ROOT_DATA_FILE) source $(UTILS_SCRIPT) && \
@@ -82,6 +91,7 @@ $(TMP)/kube-apiserver.conf: $(ROOT_DATA_FILE) | $(TMP)
 
 # target to create certificates/worker<x>/kubelet.crt files
 $(CERTIFICATES_OUTPUT)/%/kubelet.crt: $(TMP)/%.conf $(CERTIFICATES_OUTPUT)/ca.crt
+	@$(call echo_title, "generating $@")
 	@mkdir -p "$(patsubst $(CERTIFICATES_OUTPUT)/%/kubelet.crt,$(CERTIFICATES_OUTPUT)/%,$@)"
 	@source $(UTILS_SCRIPT) && gen_certificate_generic $(basename $@) $(CERTIFICATES_OUTPUT)/ca.crt $(CERTIFICATES_OUTPUT)/ca.key $< v3_ext
 

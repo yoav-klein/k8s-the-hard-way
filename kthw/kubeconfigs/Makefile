@@ -16,35 +16,43 @@ KUBELET_TARGETS    =$(patsubst %,kubelet-%.kubeconfig,$(NODES))
 KUBECONFIGS        =admin.kubeconfig kube-controller-manager.kubeconfig kube-scheduler.kubeconfig kube-proxy.kubeconfig $(KUBELET_TARGETS)
 KUBECONFIG_TARGETS =$(patsubst %,$(KUBECONFIGS_OUTPUT)/%,$(KUBECONFIGS))
 
-define log
-    echo -e "\e[32;1m=== $(1) \e[0m"
+TITLE=\e[0;44m
+RESET=\e[0m
+
+define echo_title
+    echo -e "$(TITLE)=== $(1) $(RESET)"
 endef
 
 
 all: $(KUBECONFIG_TARGETS)
 	@source $(KTHW_HOME)/lib && big_success "GENERATED KUBECONFIGS"
 
-
 $(CERTIFICATES_OUTPUT)/%.crt:
+	@$(call echo_title, "generating $@")
 	@make -C $(CERTIFICATES_DIR) $@
 
 $(KUBECONFIGS_OUTPUT)/admin.kubeconfig: $(CERTIFICATES_OUTPUT)/admin.crt
+	@$(call echo_title, "generating $@")
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "kube-admin" \
 		$(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt $< $(patsubst $(KUBECONFIGS_OUTPUT)/%.kubeconfig,$(CERTIFICATES_OUTPUT)/%.key,$@)
 
 $(KUBECONFIGS_OUTPUT)/kube-proxy.kubeconfig: $(CERTIFICATES_OUTPUT)/kube-proxy.crt
+	@$(call echo_title, "generating $@")
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:kube-proxy" \
 		$(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/%.kubeconfig,$(CERTIFICATES_OUTPUT)/%.key,$@)
  
 $(KUBECONFIGS_OUTPUT)/kube-controller-manager.kubeconfig: $(CERTIFICATES_OUTPUT)/kube-controller-manager.crt
+	@$(call echo_title, "generating $@")
 	source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:kube-controller-manager" "127.0.0.1" \
 		$@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/%.kubeconfig,$(CERTIFICATES_OUTPUT)/%.key,$@)
     
 $(KUBECONFIGS_OUTPUT)/kube-scheduler.kubeconfig: $(CERTIFICATES_OUTPUT)/kube-scheduler.crt
+	@$(call echo_title, "generating $@")
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:kube-scheduler" "127.0.0.1" \
 		$@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/%.kubeconfig,$(CERTIFICATES_OUTPUT)/%.key,$@)
 
 $(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig: $(CERTIFICATES_OUTPUT)/%/kubelet.crt
+	@$(call echo_title, "generating $@")
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:node:$(patsubst $(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig,%,$@)" \
         $(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig,$(CERTIFICATES_OUTPUT)/%/kubelet.key,$@)
 
