@@ -1,0 +1,13 @@
+
+
+
+
+
+Bugs:
+-----
+* when running clean_nodes in control-plane, it deletes
+kubectl in all the controller machines, but we need it 
+to generate the kubeconfigs
+
+
+
