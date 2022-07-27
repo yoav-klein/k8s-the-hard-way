@@ -49,37 +49,39 @@ Planning of deployment process
 etcd_agent.sh
 -----------
 commands:
-	- install_prerequisites:
+	- install_binaries:
+		purpose: install etcd binaries and necessary prerequisites
 		runs:
 		- install_prerequisites
 		
-		side effects: etcd is installed on the machine (state 1
+		side effects: etcd is installed on the machine (state 3)
 		
 	- install:
+		purpose: 
 		runs:
 		- install
 		
-		side effects: configuration files are installed, directories created
+		side effects: configuration files are installed, directories created (state 4)
 
 	- start:
 		depends: install, install_prerequisites
 		runs:
 		- start
 		
-		side effects: etcd service running
+		side effects: etcd service running (state 5)
 
 	- stop:
 		runs:
 		- stop
 		
-		side effects: etcd service stops
+		side effects: etcd service stops (state 4)
 
 	- uninstall:
 		depends: stop
 		runs:
 		- uninstall 
 		
-		side effects: clean configuration files and service file, delete directories
+		side effects: clean configuration files and service file, delete directories (state 3)
 			
 	- status:
 		- status
@@ -139,16 +141,19 @@ etcd_manager.sh
 ---------------
 commands:
 	 - create_deployment
+	 	purpose: create a deployment directory with all files to copy to nodes
 	 	runs:
 	 	- create_deployment
 	 	side effects: deployment directory
 	 	
 	 - clean - clean current directory
+	 	purpose: delete deployment directory
 	 	runs: clean
 	 	
 	 	side effects: deployment directory deleted
 	 	
-	 - install - run after create_deployment
+	 - install
+	 	purpose: install etcd binaries, configuration files and load service on all nodes
 	 	runs:
 	 	- distribute
 	 	- install
@@ -157,6 +162,7 @@ commands:
 	 	if fails between nodes: uninstall from all nodes
 	 	
 	 - uninstall - uninstall on all nodes
+	 	purpose: 
 	 	runs:
 	 	- uninstall
 	 
@@ -220,8 +226,8 @@ possible states:
 1) clean - nothing on node
 2) landed - files in k8s_home
 3) etcd_installed - etcd binaries installed
-3) files_installed - files installed on machine
-4) started - service running
+4) files_installed - files installed on machine
+5) started - service running
 
 
 
