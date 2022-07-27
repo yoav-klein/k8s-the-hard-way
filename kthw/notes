@@ -37,6 +37,10 @@ We want to allow the user at any moment:
 
 
 
+
+
+
+
 Planning of deployment process
 =============================
 
@@ -46,22 +50,49 @@ etcd_agent.sh
 -----------
 commands:
 	- install_prerequisites:
+		runs:
 		- install_prerequisites
 		
+		side effects: etcd is installed on the machine
+		
 	- install:
+		runs:
 		- install
+		
+		side effects: configuration files are installed, directories created
 
-	start:
+	- start:
+		depends: install, install_prerequisites
+		runs:
 		- start
+		
+		side effects: etcd service running
 
-	stop:
+	- stop:
+		runs:
 		- stop
+		
+		side effects: etcd service stops
 
-	uninstall:
+	- uninstall:
+		depends: stop
+		runs:
 		- uninstall 
+		
+		side effects: clean configuration files and service file, delete directories
 			
-	status:
-		- status		
+	- status:
+		- status
+	
+	- full_run
+		- install_prerequisites
+		- install
+		- start
+	- reset
+		- stop
+		- uninstall
+		- prune	
+	 	
 	
 functions:
 	install_prerequisites:
@@ -91,7 +122,14 @@ functions:
 		- check status - if enabled
 		- disable service
 		- rm files
-	
+	status:
+		- returns a json
+		{
+			"active": true
+			"loaded": true
+			"etcd_installed": true
+			"files_installed": true
+		}
 	
 		
 			
@@ -99,7 +137,79 @@ functions:
 etcd_manager.sh
 ---------------
 commands:
-
+	 - create_deployment
+	 	runs:
+	 	- create_deployment
+	 	side effects: deployment directory
+	 	
+	 - clean - clean current directory
+	 	runs: clean
+	 	
+	 	side effects: deployment directory deleted
+	 	
+	 - install - run after create_deployment
+	 	runs:
+	 	- distribute
+	 	- install
+	 	
+	 	side effects: etcd bins installed, files scp'd, configuraion files in place,  service installed
+	 	if fails between nodes: uninstall from all nodes
+	 	
+	 - uninstall - uninstall on all nodes
+	 	runs:
+	 	- uninstall
+	 
+	 	side effects: etcd unintsalled on all nodes
+	 	if fails between nodes: warn, continue to next nodes
+	 	
+	 - start - start etcd
+	 	runs:
+	 	- start
+	 	
+	 	side effects: etcd up
+	 	if fails between nodes: stop on previous nodes
+	 
+	 - stop - stop etcd
+	 	runs:
+	 	- stop
+	 	
+	 	side effecst: etcd down
+	 	if fails between nodes: warn, continue to next nodes
+	 	
+	 - test - test that etcd is up and running
+	 	runs:
+	 	- test
+	 
+	 - status - returns a report of the etcd state
+	 
+	 - full_run - create_deployment + run
+	 - reset - leave no mark of etcd
+	
+functions:
+	- clean_k8s_home - delete k8s_home directory from all nodes
+	- create_deployment
+		- patch agent script
+		- generate service files
+	- distribute
+		- scp to all nodes
+		remarks: if some node fails, delete from other nodes?
+	- install
+		does:
+		- run agent.sh install_prerequisites
+		- run agnet.sh install
+	- run
+		depends: distribute
+		does:
+		- foreach node:
+			- run agent.sh install_prerquisites
+			- run agent.sh start
+			- or: agent.sh full_run
+		remarks: if some node fails, undo all other nodes?
+	- test
+		test etcd is up and running
+	- status
+		does:
+		- foreach node, display status
 
 
 
