@@ -50,60 +50,71 @@ etcd_agent.sh
 -----------
 commands:
 	- install_binaries:
-		purpose: install etcd binaries and necessary prerequisites
+		purpose: install etcd software and necessary prerequisites
 		runs:
-		- install_prerequisites
-		
+		- install_binaries
 		side effects: etcd is installed on the machine (state 3)
 		
-	- install:
-		purpose: 
+	- uninstall_binaries:
+		purpose: remove etcd software
+		depends: stop
 		runs:
-		- install
+		- uninstall_binaries
+		side effects: remove etcd software (state 2)
 		
-		side effects: configuration files are installed, directories created (state 4)
-
-	- start:
-		depends: install, install_prerequisites
+	- install_service:
+		purpose: install service files etc.
 		runs:
-		- start
+		- install_service
+		side effects: configuration files are installed, directories created, service enabled (state 4)
 		
-		side effects: etcd service running (state 5)
-
-	- stop:
-		runs:
-		- stop
-		
-		side effects: etcd service stops (state 4)
-
-	- uninstall:
+	- uninstall_service:
+		purpose: remove the service and all configuration files
 		depends: stop
 		runs:
 		- uninstall 
-		
 		side effects: clean configuration files and service file, delete directories (state 3)
+
+	- start:
+		purpose: start the service
+		depends: install, install_prerequisites
+		runs:
+		- start
+		side effects: etcd service running (state 5)
+
+	- stop:
+		purpose: stop the service
+		runs:
+		- stop	
+		side effects: etcd service stops (state 4)
 			
 	- status:
 		- status
 	
 	- full_run
-		- install_prerequisites
-		- install
+		- install_binaries
+		- install_service
 		- start
+		
 	- reset
 		- stop
-		- uninstall
-		- prune	
+		- uninstall_service
+		- uninstall_binaries
 
 
 functions:
-	install_prerequisites:
+	install_etcd_bins: (state 2 -> 3)
 		- check sudoer
 		- download etcd binaries
 		- install them
 		returns: 0/1
 	
-	install:
+	uninstall_etcd_bins (state 3 -> 2)
+		- check sudoer
+		- remove binaries
+		returns: 0/1
+	
+	install: (state 2 -> 4)
 		- check sudoer
 		- check files exist
 		- create directories
@@ -111,19 +122,22 @@ functions:
 		- copy service files
 		- enable service (if fails - remove previous steps)
 	
-	start:
+	start: (state 4 -> 5)
 		- check service is loaded (status)
 		- check binaries installed (status)
 		- start service
-	stop:
+		
+	stop: (state 5 -> 4)
 		- check status - if running
 		- check status - if loaded
 		- stop service
-	uninstall:
+		
+	uninstall: (state 4 -> 2)
 		- check status - if running
 		- check status - if enabled
 		- disable service
-		- rm files
+		- rm files and directories
+	
 	status:
 		- returns a json
 		{
@@ -135,6 +149,10 @@ functions:
 		}
 	
 		
+
+
+
+#############################
 			
 		
 etcd_manager.sh
@@ -146,75 +164,121 @@ commands:
 	 	- create_deployment
 	 	side effects: deployment directory
 	 	
-	 - clean - clean current directory
+	 - delete_deployment - clean deployment directory
 	 	purpose: delete deployment directory
 	 	runs: clean
-	 	
 	 	side effects: deployment directory deleted
 	 	
 	 - install
 	 	purpose: install etcd binaries, configuration files and load service on all nodes
+	 	start state: 0
 	 	runs:
-	 	- distribute
-	 	- install
-	 	
-	 	side effects: etcd bins installed, files scp'd, configuraion files in place,  service installed
+	 	- distribute (state 2)
+	 	- install_binaries (state 3) -> if fails, clean
+	 	- install_service (state 4)  -> if fails, uninstall_binaries, clean 
+	 	side effects: etcd bins installed, files scp'd, configuraion files in place,  service installed (state 0 -> 4)
 	 	if fails between nodes: uninstall from all nodes
 	 	
-	 - uninstall - uninstall on all nodes
-	 	purpose: 
+	 - uninstall 
+	 	purpose: uninstall on all nodes
+	 	start state: 4
 	 	runs:
-	 	- uninstall
-	 
-	 	side effects: etcd unintsalled on all nodes
+	 	- uninstall_service (state 3)
+	 	- uninstall binaries (state 2)
+	 	side effects: etcd unintsalled on all nodes (state 4 -> 2)
 	 	if fails between nodes: warn, continue to next nodes
 	 	
-	 - start - start etcd
+	 - clean_nodes
+	 	purpose: delete etcd software and etcd_home
+	 	start state: 2
+	 	runs:
+	 	- clean_etcd_home
+	 	side effects: etcd_home delete (state 2 -> 1)
+	 	
+	 - start
+	 	purpose: start etcd
+	 	start  state: 4
 	 	runs:
 	 	- start
-	 	
-	 	side effects: etcd up
+	 	side effects: etcd up (state 5)
 	 	if fails between nodes: stop on previous nodes
 	 
-	 - stop - stop etcd
+	 - stop
+	 	purpose: stop etcd
+	 	start state: 5
 	 	runs:
 	 	- stop
-	 	
-	 	side effecst: etcd down
+	 	side effecst: etcd down (state 4)
 	 	if fails between nodes: warn, continue to next nodes
 	 	
-	 - test - test that etcd is up and running
+	 - test
+	 	purpose: test etcd
+	 	start state: 5
 	 	runs:
 	 	- test
 	 
 	 - status - returns a report of the etcd state
 	 
 	 - full_run - create_deployment + run
-	 - reset - leave no mark of etcd
+	 - reset
+	 	purpose: leave no mark of etcd
+	 	runs:
+	 	- stop
+	 	- 
 	
 functions:
-	- clean_k8s_home - delete k8s_home directory from all nodes
+	- clean_etcd_home - delete etcd_home directory from all nodes
 	- create_deployment
 		- patch agent script
 		- generate service files
+		
 	- distribute
 		- scp to all nodes
-		remarks: if some node fails, delete from other nodes?
-	- install
+		remarks: if some node fails, delete from other nodes
+	
+	- clean_etcd_home
+		- delete etcd_home from all nodes
+		remarks: if some node fails, warn and continue
+	
+	- install_binaries
 		does:
-		- check status - if installed
-		- run agent.sh install_prerequisites
-		- run agnet.sh install
-	- run
+		- check status - should be 'landed'
+		- run agent.sh install_binaries (state 3)
+		remarks: if some node fails, clean previous nodes
+	
+	- uninstall_binaries
+		does:
+		- remove etcd binaries
+		remarks: if some node fails, warn and continue
+		
+	- install_service
 		depends: distribute
 		does:
-		- foreach node:
-			- run agent.sh install_prerquisites
-			- run agent.sh start
-			- or: agent.sh full_run
-		remarks: if some node fails, undo all other nodes?
+		- check status - should be uninstalled - if installed - raise warning and return
+		- run agnet.sh install (state 4)
+		remarks: if some node fails, uninstall from all nodes
+		
+	- uninstall_service
+		does:
+		- check status - should be installed
+		- run agent.sh uninstall (state 3)
+		remarks: if some node fails, warn and continue
+		
+	- start
+		does:
+		- check status - should be installed
+		- start etcd service on all nodes
+		remarks: if some node fails, stop previous nodes
+		
+	- stop
+		does:
+		- check status - should be started
+		- stop etcd service on all nodes
+		remarks: if some node fails, raise warning and continue
+		
 	- test
 		test etcd is up and running
+		
 	- status
 		does:
 		- foreach node, display status
@@ -226,7 +290,7 @@ possible states:
 1) clean - nothing on node
 2) landed - files in k8s_home
 3) etcd_installed - etcd binaries installed
-4) files_installed - files installed on machine
+4) service_installed - files installed on machine, service enabled
 5) started - service running
 
 
