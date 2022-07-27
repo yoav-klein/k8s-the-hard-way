@@ -34,3 +34,93 @@ We want to allow the user at any moment:
 - uninstall the services
 - prune (delete everything we've copied)
 - check status
+
+
+
+Planning of deployment process
+=============================
+
+(talking here about etcd, but relevant for control plane and kubelet)
+
+etcd_agent.sh
+-----------
+commands:
+	preflight_checks:
+		- check if sudo is possible
+		- check if all files are here
+	install_prerequisites:
+		does:
+			- download and install etcd binaries
+		returns:
+			- 0/1
+
+	install:
+		does:
+			- run preflight_checks
+			- create directories
+			- copy certificates
+			- copy service file
+			- enable service
+		returns: 0/1
+		state after run: leaves the machine dirty
+			
+
+	start:
+		depends:
+			- install
+			- install_etcd_bins
+		does:
+			- check status - check running
+			- check status - check installed
+			- start the service
+		returns: 0/1
+
+	stop:
+		does:
+			- check status - if running - throw warning if not
+			- stop the service
+
+
+	uninstall:
+		depends:
+			- stop
+		does:
+			- check status - if running - throw error
+			- disable the service
+			- remove directories
+			
+	status:
+		does:
+			check and report:
+			- service running
+			- service loaded
+			- files installed
+			- etcd binaries installed
+functions:
+	install_prerequisites:
+		does:
+		- check sudoer
+		- download etcd binaries
+		- install them
+		returns: 0/1
+	
+	install:
+		does:
+		- check sudoer
+		- check files exist
+		- create directories
+		- copy certificates
+		- copy service files
+			
+		
+etcd_manager.sh
+---------------
+commands:
+
+
+
+
+
+
+
+
