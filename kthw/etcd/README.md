@@ -33,6 +33,11 @@ do the whole thing from start to end.
 
 ## Usage
 
+You can always see the status of etcd on the nodes:
+```
+$ etcd_manager.sh status
+```
+
 ### Up
 So, taking the long way, we'll do:
 ```
@@ -63,5 +68,26 @@ $ etcd_manager.sh reset
 ```
 
 
+## Strategy
 
+The startegy we take to handle this is as follows:
 
+We have the `etcd_agent.sh` script, which is copied to each controller node.
+This agent script performs granular actions: install_binaries, install_service, start, and their reverse.
+
+Each of these functions are guaranteed to either succeed or fail completely - they won't leave some trash behind.
+
+For each command in the agent script, The `etcd_manager.sh` script has a corresponding command.
+This command in the manager iterates over all the controller nodes and runs this command
+on the node.
+
+Now, each command may result in one of the following, with the following status codes:
+1. Succeed - 0
+2. Failed - the operation failed - 1
+3. Not Ready - the node is not ready for this command. For exmaple, trying to start the service when it is not yet - 3
+installed
+4. Already done - for example trying to start the service when it's already running. - 2
+
+When the manager iterates over the nodes, if we receive 0 or 3 - we go on to the next node
+If we receive 1 or 2, we stop execution, leaving the nodes that succeeded as is.
+In this case, the user needs to check why the operation failed on that node, fix it, and run the operation again.
