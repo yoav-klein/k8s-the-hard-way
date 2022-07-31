@@ -141,7 +141,13 @@ install_service() {
     _copy_unit_file || { delete_directories; log_error "failed to install service"; return 1; }
     
     systemctl daemon-reload || { _delete_unit_file; _delete_directories; log_error "failed to daemon-reload"; exit 1; }
-    systemctl enable etcd ||  { _delete_unit_file; _delete_directories; log_error "failed to enable service"; exit 1; }
+    if ! systemctl enable etcd; then
+        _delete_unit_file 
+        _delete_directories
+        systemctl daemon-reload
+        log_error "failed to enable service"
+        return 1
+    fi
 
     log_info "etcd service is loaded and enabled"
 }
