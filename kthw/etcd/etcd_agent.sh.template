@@ -1,0 +1,366 @@
+#!/bin/bash
+
+cmd=$1
+
+etcd_home={{etcd_home}}
+etcd_version={{etcd_version}}
+
+
+## Logging functions
+
+GREEN="\e[32;1m"
+RED="\e[31;1m"
+RESET="\e[0m"
+TITLE="\e[0;44m"
+YELLOW="\e[33;1m"
+
+echo_title() {
+    echo -e "${TITLE} $1 ${RESET}"
+}
+
+log() {
+    log_level=$1; shift
+    message=$1
+    if [ -z "$message" ]; then
+        echo "Usage: log <message>"
+        return
+    fi
+    echo "$log_level: etcd_agent:${FUNCNAME[2]}:${LINENO[2]} $message"
+}
+
+log_warning() {
+    log WARNING "$1"
+}
+
+log_info() {
+    log INFO "$1"
+}
+
+
+log_debug() {
+    log DEBUG "$1"
+}
+
+log_error() {
+    log ERROR "$1"
+}
+
+log_success() {
+    echo -e "${GREEN}=== $2 $RESET"
+}
+
+####### API functions
+
+##### 
+#   installing the etcd software
+#   
+#   Returns 0 on success, 1 on error
+#   on success, installs etcd binaries in /usr/local/bin
+#   idempotent - will only run if not already installed
+#
+#####
+install_etcd_binaries() {
+    if [ $(_check_binaries_installed) = "true" ]; then
+        log_warning "binaries already installed !"
+        return 2
+    fi
+    echo_title "installing etcd binaries"
+    # choose either URL
+    local google_url=https://storage.googleapis.com/etcd
+    local download_url=${google_url}
+    
+    curl -sSfL ${download_url}/${etcd_version}/etcd-${etcd_version}-linux-amd64.tar.gz -o /tmp/etcd-${etcd_version}-linux-amd64.tar.gz || \
+    { log_error "${FUNCNAME}" "failed downloading etcd"; exit 1; }
+    
+    [ -d /tmp/etcd-download-test ] || mkdir -p /tmp/etcd-download-test 
+    tar xzvf /tmp/etcd-${etcd_version}-linux-amd64.tar.gz -C /tmp/etcd-download-test --strip-components=1
+    rm -f /tmp/etcd-${etcd_version}-linux-amd64.tar.gz
+    
+    cp /tmp/etcd-download-test/etcd /usr/local/bin || { log_error "failed to install etcd binaries"; return 1; }
+    cp /tmp/etcd-download-test/etcdctl /usr/local/bin || { uninstall_etcd_binaries; "failed to install etcd binaries"; return 1; }
+    cp /tmp/etcd-download-test/etcdutl /usr/local/bin || { uninstall_etcd_binaries; "failed to install etcd binaries"; return 1; }
+
+    if _test_installation; then log_info "etcd software installed"; fi
+}
+
+
+
+##### 
+#
+#   uninstalling the etcd software
+#   
+#   the undo of the install etcd function
+#   on success, uninstalls etcd binaries from /usr/local/bin
+#   runs only if: etcd installed and service unloaded
+#
+#####
+
+uninstall_etcd_binaries() {
+    if [ $(_check_binaries_installed) = "false" ]; then
+        log_warning "binaries already uninstalled !"
+        return 2
+    fi
+    if [ $(_check_service_loaded) = "true" ]; then
+        log_warning "service is loaded, uninstall service first"
+        return 3
+    fi
+
+    echo_title "uninstalling etcd binaries"
+    rm /usr/local/bin/etcd* || { log_error "failed to uninstall etcd binaries !"; return 1; }
+    log_info "etcd binaries uninstalled"
+}
+
+##############
+#
+#   install etcd service
+#
+#   this function does a great deal of things:
+#   - create required directories
+#   - copy certificates to correct locations
+#   - copy service file to correct location
+#   - load and enable the service
+#
+#   runs only if in 'landed' state, and service not already loaded
+#
+##############
+
+install_service() {
+    if [ $(_check_service_loaded) = "true" ]; then
+        log_warning "service already installed !"
+        return 2
+    fi
+    if [ $(_check_binaries_installed) = "false" ]; then
+        log_warning "binaries are not installed yet, install binaries first"
+        return 3
+    fi
+
+    echo_title "installing service"
+
+    _create_directories || { log_error "failed to install service"; return 1; } 
+    _copy_certificates || { _delete_directories; log_error "failed to install service"; return 1; } 
+    _copy_unit_file || { delete_directories; log_error "failed to install service"; return 1; }
+    
+    systemctl daemon-reload || { _delete_unit_file; _delete_directories; log_error "failed to daemon-reload"; exit 1; }
+    systemctl enable etcd ||  { _delete_unit_file; _delete_directories; log_error "failed to enable service"; exit 1; }
+
+    log_info "etcd service is loaded and enabled"
+}
+
+#################
+#   
+#   uninstall the etcd service
+#
+#   the undo of the install service function
+#   will do the followings:
+#   - disable the service
+#   - remove directories
+#   - remove unit file
+#   - reload services
+#
+#   runs only if service is not active and is loaded
+#
+###################
+
+uninstall_service() {
+    if [ $(_check_service_active) = "true" ]; then
+        log_warning "service is active, stop service first"
+        return 3
+    fi
+    if [ $(_check_service_loaded) = "false" ]; then
+        log_warning "service already uninstalled"
+        return 2
+    fi
+
+    echo_title "uninstalling service"
+    systemctl disable etcd || { log_error "failed to disable service etcd"; return 1; }
+    _delete_unit_file || { log_error "failed to remove service file"; return 1; }
+    
+    systemctl daemon-reload || log_error "systemctl deamon-reload failed"
+    _delete_directories || log_warning "failed to delete directories"
+
+    log_info "etcd service is unloaded, directories removed"
+}
+
+
+##############
+#   
+#   start the etcd service
+#   
+#   runs only if service is loaded
+#
+###############
+start_service() {
+    if [ $(_check_service_active) = "true" ]; then
+        log_warning "service already running"
+        return 2
+    fi
+    if [ $(_check_service_loaded) = "false" ]; then
+        log_warning "service is not loaded, load service first"
+        return 3
+    fi
+    if [ $(_check_binaries_installed) = "false" ]; then
+        log_warning "etcd binaries uninstalled, install first"
+        return 3
+    fi
+
+    echo_title "starting service"
+    systemctl start etcd || { log_error "failed to start etcd service"; return 1; }
+
+    if systemctl is-active etcd; then
+        log_info "etcd service is up"
+    else
+        log_error "etcd service is not running !"
+        return 1
+    fi
+}
+
+##################
+#
+#   stop the etcd service
+#
+#   runs only if service is active
+#
+##################
+stop_service() {
+    if [ $(_check_service_active) = "false" ]; then
+        log_warning "service already stopped"
+        return 2
+    fi
+
+    echo_title "stopping service"
+    systemctl stop etcd || { log_error "failed to stop etcd service" || return 1; }
+
+    log_info "etcd stopped"
+
+}
+
+## Utility functions
+_create_directories() {
+    mkdir -p /etc/etcd /var/lib/etcd || { log_error "failed to create directories"; return 1; }
+    log_debug "directories created"
+}
+
+_delete_directories() {
+    if [ ! -d /etc/etcd ]; then
+        log_warning "/etc/etcd doesn't exist"
+    fi
+    if [ ! -d /var/lib/etcd ]; then
+        log_warning "/var/lib/etcd doesn't exist"
+    fi
+    rm -rf /var/lib/etcd /etc/etcd || log_error "failed to remove /var/lib/etcd"
+    log_debug "directories removed"
+    
+}
+
+_copy_certificates() {
+    cp $etcd_home/ca-etcd.crt /etc/etcd || { log_error "failed to copy certificates"; return 1; }
+    cp $etcd_home/etcd-server.crt /etc/etcd || { log_error "failed to copy certificates"; rm /etc/etcd/*; return 1; }
+    cp $etcd_home/etcd-server.key /etc/etcd || { log_error "failed to copy certificates"; rm /etc/etcd/*; return 1; }
+}
+
+_copy_unit_file() {
+    cp $etcd_home/etcd.service /etc/systemd/system  || { log_error "failed to copy service file"; return 1; }
+}
+
+_delete_unit_file() {
+    if [ -f /etc/systemd/system/etcd.service ]; then
+        rm /etc/systemd/system/etcd.service || { log_error "failed to remove unit file"; return 1; }
+    else
+        warn "unit file doesn't exist"
+    fi
+}
+
+_test_installation() {
+    if etcd --version; then return 0; else return 1; fi
+}
+
+
+########## check status functions of etcd
+_check_service_loaded() {
+    test -d /etc/etcd && test -d /var/lib/etcd && \
+    systemctl list-units --all | grep etcd 2>&1 > /dev/null && \
+    systemctl is-enabled etcd 2>&1 > /dev/null && echo "true" || echo "false"
+}
+
+_check_service_active() {
+    systemctl is-active etcd 2>&1 > /dev/null && echo "true" || echo "false"
+}
+
+_check_binaries_installed() {
+    test -f /usr/local/bin/etcd && test -f /usr/local/bin/etcdctl && \
+    test /usr/local/bin/etcdutl && echo "true" || echo "false"
+}
+
+_check_landed() {
+    test -f $etcd_home/etcd-server.crt && test -f $etcd_home/etcd-server.key && \
+    test -f $etcd_home/etcd.service && test -f $etcd_home/ca-etcd.crt && echo "true" || echo "false"
+}
+
+status() {
+    json='{"installed": true, "loaded": true}'
+    local is_installed=$(_check_binaries_installed)
+    local is_loaded=$(_check_service_loaded)
+    local is_landed=$(_check_landed)
+    local is_active=$(_check_service_active)
+    echo $json | jq ".installed |= $is_installed | .loaded |= $is_loaded | .active |= $is_active | .landed |= $is_landed"
+}
+
+
+test_etcd() {
+    export ETCD_API=3
+    output=$(etcdctl member list --write-out=json  \
+   --endpoints=https://127.0.0.1:2379 \
+   --cacert=/etc/etcd/ca-etcd.crt \
+   --cert=/etc/etcd/etcd-server.crt \
+   --key=/etc/etcd/etcd-server.key)
+    
+    num_members=$(echo $output | jq ".members | length")
+    expected={{NUM_CONTROLLERS}}
+
+    if [ "$num_members" = "$expected" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+
+usage() {
+    echo "Usage: "
+    echo "setup.sh [install, start, stop, uninstall, reset]"
+    echo ""
+    echo "Commands:"
+    echo "install_binaries - install the etcd software"
+    echo "uninstall_binaries - uninstall the etcd software"
+    echo "install_service - install the etcd service"
+    echo "uninstall_service - uninstall the etcd service"
+    echo "start - manually start the service"
+    echo "stop - manually stop the service"
+    echo "test - check that etcd is working"
+}
+
+
+### verify running with sudo
+
+user_id=`id -u`
+if [ $user_id -ne 0 ]; then
+    echo "Must run as sudo"
+    exit 1
+fi
+
+
+case $cmd in
+    install_binaries) install_etcd_binaries;;
+    uninstall_binaries) uninstall_etcd_binaries;;
+    install_service) install_service;;
+    uninstall_service) uninstall_service;;
+    start) start_service;;
+    stop) stop_service;;
+    test) test_etcd;;
+    status) status;;
+    *) usage;;
+esac
+
+
+
+

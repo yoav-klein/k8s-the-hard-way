@@ -1,2 +1,2 @@
-*.etcd.service
-setup.sh
+deployment/
+

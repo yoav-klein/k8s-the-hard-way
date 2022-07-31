@@ -1,6 +1,12 @@
 
+GREEN="\e[32;1m"
+RED="\e[31;1m"
+RESET="\e[0m"
+TITLE="\e[0;44m"
+YELLOW="\e[33;1m"
+
 big_success() {
-    echo -e "\e[32;1m"
+    echo -e "$GREEN"
     echo "###############################################"
     echo "#"
     echo "#"
@@ -8,21 +14,35 @@ big_success() {
     echo "#"
     echo "#"
     echo "###############################################"
-    echo -e "\e[0m"
+    echo -e "$RESET"
+}
+
+echo_title() {
+    echo -e "${TITLE} $1 ${RESET}"
 }
 
 log_warning() {
-    echo "WARNING: $1"
+    module=${2:+"$1::"}
+    message="${2:-$1}"
+    echo -e "${YELLOW}${module}WARNING: $message ${RESET}"
+}
+
+log_info() {
+    module=${2:+"$1::"}
+    message="${2:-$1}"
+    echo "${module}INFO: $message"
+}
+
+log_error() {
+    module=${2:+"$1::"}
+    message="${2:-$1}"
+    echo -e "${RED}${module}ERROR: $message $RESET"
 }
 
 log_success() {
-    echo -e "\e[32;1m=== $1 \e[0m"
+    echo -e "${GREEN}=== $1 $RESET"
 }
 
-
-log_error() {
-    echo -e "\e[31;1m=== $1 \e[0m"
-}
 
 on_failure() {
     if [ $? = 0 ]; then

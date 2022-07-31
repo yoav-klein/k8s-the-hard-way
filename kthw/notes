@@ -38,9 +38,6 @@ We want to allow the user at any moment:
 
 
 
-
-
-
 Planning of deployment process
 =============================
 
@@ -51,25 +48,29 @@ etcd_agent.sh
 commands:
 	- install_binaries:
 		purpose: install etcd software and necessary prerequisites
+		condition: not binaries installed
 		runs:
 		- install_binaries
 		side effects: etcd is installed on the machine (state 3)
 		
 	- uninstall_binaries:
 		purpose: remove etcd software
+		condition: not loaded
 		depends: stop
 		runs:
 		- uninstall_binaries
 		side effects: remove etcd software (state 2)
 		
 	- install_service:
-		purpose: install service files etc.
+		condition: not installed
+		purpose: install service files, load service, enable service.
 		runs:
 		- install_service
-		side effects: configuration files are installed, directories created, service enabled (state 4)
+		side effects: configuration files are installed, directories created, service loaded and enabled (state 4)
 		
 	- uninstall_service:
 		purpose: remove the service and all configuration files
+		condition: not active, loaded
 		depends: stop
 		runs:
 		- uninstall 
@@ -77,6 +78,7 @@ commands:
 
 	- start:
 		purpose: start the service
+		condition: loaded, binaries_installed
 		depends: install, install_prerequisites
 		runs:
 		- start
@@ -84,6 +86,7 @@ commands:
 
 	- stop:
 		purpose: stop the service
+		condition: active
 		runs:
 		- stop	
 		side effects: etcd service stops (state 4)
@@ -91,16 +94,6 @@ commands:
 	- status:
 		- status
 	
-	- full_run
-		- install_binaries
-		- install_service
-		- start
-		
-	- reset
-		- stop
-		- uninstall_service
-		- uninstall_binaries
-
 
 functions:
 	install_etcd_bins: (state 2 -> 3)
@@ -114,13 +107,19 @@ functions:
 		- remove binaries
 		returns: 0/1
 	
-	install: (state 2 -> 4)
+	install_service: (state 2 -> 4)
 		- check sudoer
 		- check files exist
 		- create directories
 		- copy certificates
 		- copy service files
 		- enable service (if fails - remove previous steps)
+		
+	uninstall_service: (state 4 -> 2)
+		- check status - if running
+		- check status - if enabled
+		- disable service
+		- rm files and directories
 	
 	start: (state 4 -> 5)
 		- check service is loaded (status)
@@ -131,12 +130,6 @@ functions:
 		- check status - if running
 		- check status - if loaded
 		- stop service
-		
-	uninstall: (state 4 -> 2)
-		- check status - if running
-		- check status - if enabled
-		- disable service
-		- rm files and directories
 	
 	status:
 		- returns a json
@@ -144,7 +137,6 @@ functions:
 			"active": true
 			"loaded": true
 			"etcd_installed": true
-			"files_installed": true
 			"landed": true
 		}
 	
@@ -157,6 +149,13 @@ functions:
 		
 etcd_manager.sh
 ---------------
+
+our strategy is as such:
+for each command in etcd_agent, we'll have a corresponding 
+command in etcd_manager, which will run on all nodes and execute
+the command.
+if one node fails, we'll print an error and continue, and return a failure status code
+
 commands:
 	 - create_deployment
 	 	purpose: create a deployment directory with all files to copy to nodes
@@ -168,49 +167,66 @@ commands:
 	 	purpose: delete deployment directory
 	 	runs: clean
 	 	side effects: deployment directory deleted
-	 	
-	 - install
-	 	purpose: install etcd binaries, configuration files and load service on all nodes
-	 	start state: 0
+	 
+	 - distribute
+	 	purpose: distribute deployment to all nodes
+		runs: distribute
+		side effects: moves all nodes to "landed" state
+
+     - clean_etcd_home:
+		purpose: undo 'distribute'
+		start state: 'landed', not installed, not loaded
+		side effects: deletes etcd_home, moving nodes to 'clean' state
+		if fails between nodes: raise error, continue to next node
+
+        consider: checking that no node is in non-landed state (like active or installed)
+
+	 - install_binaries
+	 	purpose: install etcd binaries
+	 	start state: 'landed', not installed, not loaded
 	 	runs:
-	 	- distribute (state 2)
-	 	- install_binaries (state 3) -> if fails, clean
-	 	- install_service (state 4)  -> if fails, uninstall_binaries, clean 
-	 	side effects: etcd bins installed, files scp'd, configuraion files in place,  service installed (state 0 -> 4)
-	 	if fails between nodes: uninstall from all nodes
-	 	
-	 - uninstall 
-	 	purpose: uninstall on all nodes
-	 	start state: 4
+	 	- install_etcd_binaries
+	 	side effects: etcd bins installed 
+
+	 - uninstall_binaries
+	 	purpose: undo 'install_binaries'
+		start state: 'installed', not loaded
+		runs:
+		- uninstall_etcd_binaries
+		if fails between nodes: raise error, continue to next node
+        if not ready between nodes: raise error, continue to next node
+
+	 - install_service
+	 	purpose: install service on all nodes
+		start state: binaries installed
+		runs:
+		- install_service
+		side effects: loaded state
+
+	 - uninstall_service
+	 	purpose: undo install_service
+	 	start state: 'loaded'
 	 	runs:
-	 	- uninstall_service (state 3)
-	 	- uninstall binaries (state 2)
-	 	side effects: etcd unintsalled on all nodes (state 4 -> 2)
-	 	if fails between nodes: warn, continue to next nodes
-	 	
-	 - clean_nodes
-	 	purpose: delete etcd software and etcd_home
-	 	start state: 2
-	 	runs:
-	 	- clean_etcd_home
-	 	side effects: etcd_home delete (state 2 -> 1)
-	 	
+	 	- uninstall_service
+	 	side effects: service unintsalled on all nodes (state 'installed')
+	 	if fails between nodes: error, continue to next nodes
+        if not ready between nodes: same
+	 
 	 - start
 	 	purpose: start etcd
-	 	start  state: 4
+	 	start state: 'loaded'
 	 	runs:
 	 	- start
 	 	side effects: etcd up (state 5)
-	 	if fails between nodes: stop on previous nodes
 	 
 	 - stop
 	 	purpose: stop etcd
-	 	start state: 5
+	 	start state: 'active'
 	 	runs:
 	 	- stop
 	 	side effecst: etcd down (state 4)
-	 	if fails between nodes: warn, continue to next nodes
-	 	
+	 	if fails between nodes: raise error, continue to next nodes
+ 
 	 - test
 	 	purpose: test etcd
 	 	start state: 5
@@ -219,13 +235,14 @@ commands:
 	 
 	 - status - returns a report of the etcd state
 	 
-	 - full_run - create_deployment + run
+	 - full_run - create_deployment, install binaries and service, start service
 	 - reset
 	 	purpose: leave no mark of etcd
 	 	runs:
 	 	- stop
 	 	- 
-	
+
+
 functions:
 	- clean_etcd_home - delete etcd_home directory from all nodes
 	- create_deployment
@@ -290,9 +307,33 @@ possible states:
 1) clean - nothing on node
 2) landed - files in k8s_home
 3) etcd_installed - etcd binaries installed
-4) service_installed - files installed on machine, service enabled
+4) loaded - files installed on machine, service enabled
 5) started - service running
 
+states 3 and 4 are not sequential but parallel - they don't depend on one another.
+state 5 depends on both.
+
+
+
+Mission: etcd_manager
+Description:  refactor the etcd_manager script to match the new etcd_agent script
+==========
+Tasks
+-----
+1. refactor etcd_agent.sh
+	we want to have a convention of status codes returned by the functions.
+	failure -      1
+	already-done - 2
+	not-ready -    3
+	so that when some node returns 3, etcd_manager detects this as an error
+	and aborts the action.
+2. create a generic function for processing on all nodes:
+    the function receives:
+        - function to perform
+        - list of nodes
+        - name of action
+    the function iterate over the nodes, and run the function in question
+    if fails, raise error and continue to next node
 
 
 
