@@ -137,34 +137,7 @@ distribute_etcd_files() {
         log_info "copied files to $name"
     done
 }
-
-install_binaries() {
-    _execute_on_nodes "install_binaries" || { log_error "install binaries failed"; return 1; } 
-}
-
-uninstall_binaries() {
-    _execute_on_nodes "uninstall_binaries" || { log_error "uninstall binaries failed"; return 1; } 
-}
-
-install_service() {
-    _execute_on_nodes "install_service" || { log_error "install service failed"; return 1; } 
-}
-
-
-uninstall_service() {
-    _execute_on_nodes "uninstall_service" || { log_error "uninstall service failed"; return 1; } 
-}
-
-start_service() {
-    _execute_on_nodes "start" || { log_error "start service failed"; return 1; } 
-}
-
-stop_service() {
-    _execute_on_nodes "stop" || { log_error "stop service failed"; return 1; } 
-}
-
-
-## delete the ETCD_HOME directory on all nodes
+## delete the etcd_home directory on all nodes
 # if some node is in either installed, loaded or active state, abort
 # and move to next node
 clean_nodes() {
@@ -194,6 +167,33 @@ clean_nodes() {
         log_info "cleaned node $name"
     done
 }
+
+
+install_binaries() {
+    _execute_on_nodes "install_binaries" || { log_error "install binaries failed"; return 1; } 
+}
+
+uninstall_binaries() {
+    _execute_on_nodes "uninstall_binaries" || { log_error "uninstall binaries failed"; return 1; } 
+}
+
+install_service() {
+    _execute_on_nodes "install_service" || { log_error "install service failed"; return 1; } 
+}
+
+
+uninstall_service() {
+    _execute_on_nodes "uninstall_service" || { log_error "uninstall service failed"; return 1; } 
+}
+
+start_service() {
+    _execute_on_nodes "start" || { log_error "start service failed"; return 1; } 
+}
+
+stop_service() {
+    _execute_on_nodes "stop" || { log_error "stop service failed"; return 1; } 
+}
+
 
 test_etcd() {
     local first_controller_ip=$(echo ${controllers[0]} | jq -r ".ip")
@@ -307,6 +307,7 @@ usage() {
     echo "start                - Start etcd on nodes"
     echo "stop                 - Stop the service"
     echo "test                 - Test etcd"
+    echo "status               - Check the status of etcd on nodes"
     echo "bootstrap            - Bootstrap the etcd cluster from scratch to end"
     echo "reset                - Leave no mark of etcd on nodes"
 }

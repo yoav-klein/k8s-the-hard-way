@@ -5,6 +5,7 @@ To do:
 * Worker nodes
 * Consider ansible?
 * Consider: How to make sure that when running control-plane, etcd is already up?
+* Change distribute in etcd to be like conrol plane
 
 
 Nice to have:
