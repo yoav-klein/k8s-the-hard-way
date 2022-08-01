@@ -21,49 +21,6 @@ echo_title() {
     echo -e "${TITLE} $1 ${RESET}"
 }
 
-log_warning() {
-    module=${2:+"$1::"}
-    message="${2:-$1}"
-    echo -e "${YELLOW}${module}WARNING: $message ${RESET}"
-}
-
-log_info() {
-    module=${2:+"$1::"}
-    message="${2:-$1}"
-    echo "${module}INFO: $message"
-}
-
-log_error() {
-    module=${2:+"$1::"}
-    message="${2:-$1}"
-    echo -e "${RED}${module}ERROR: $message $RESET"
-}
-
-log_success() {
-    echo -e "${GREEN}=== $1 $RESET"
-}
-
-
-on_failure() {
-    if [ $? = 0 ]; then
-        return
-    fi
-
-    case "$1" in
-       warn)
-           log_warning "$2"
-           ;;
-       stop)
-           log_error "$2"
-           exit 1
-           ;;
-       *)
-           log_error "$2"
-           ;;
-    esac
-        
-}
-
 run_scp() {
     username=$1
     machine=$2
@@ -79,6 +36,5 @@ run_scp() {
     fi
 
     scp -i $private_key "$local_path" "$username@$machine:$remote_path"
-    on_failure stop "scp failed moving $local_path to $machine"
 }
 

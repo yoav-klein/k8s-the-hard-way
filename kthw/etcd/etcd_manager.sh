@@ -203,7 +203,7 @@ test_etcd() {
     if [ $? = 0 ]; then
         big_success "ETCD IS UP AND RUNNING"
     else
-        log_error "ETCD FAILED !"
+        echo -e  "${COLOR_RED}!!! ETCD TEST FAILED !!!${RESET}"
         exit 1
     fi
 }
@@ -254,7 +254,7 @@ bootstrap() {
         return 1
     fi
     
-    log_success "bootstraping etcd succeed"
+    print_success "bootstraping etcd succeed"
 }
 
 reset() {
@@ -286,7 +286,7 @@ reset() {
         return 1
     fi
 
-    log_success "reset etcd succeed"
+    print_success "reset etcd succeed"
 }
 
 ############################################################################

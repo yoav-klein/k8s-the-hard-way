@@ -1,6 +1,8 @@
 #!/bin/bash
 
 source ../lib
+source ../.env
+source $LOG_LIB
 
 gen_kubeconfig() {
     cluster_name=$1
@@ -15,7 +17,7 @@ gen_kubeconfig() {
        [ -z "$user_name" ] || [ -z "$apiserver_ip" ] || \
        [ -z "$kubeconfig_path" ] || [ -z "$ca" ] || \
        [ -z "$client_cert" ] || [ -z "$client_key" ]; then
-           log_error "Usage: gen_kubeconfig <cluster_name> <user_name> <apiserver_ip> <kubeconfig_path> <ca> <client_cert> <client_key>"
+           echo "Usage: gen_kubeconfig <cluster_name> <user_name> <apiserver_ip> <kubeconfig_path> <ca> <client_cert> <client_key>"
            exit 1
     fi
 
@@ -23,26 +25,26 @@ gen_kubeconfig() {
     --certificate-authority=$ca \
     --embed-certs=true \
     --server=https://$apiserver_ip:6443 \
-    --kubeconfig=$kubeconfig_path
-    on_failure stop "kubectl config set-cluster FAILED"
+    --kubeconfig=$kubeconfig_path \
+    || { log_error "kubectl config set-cluster failed"; return 1; }
 
     kubectl config set-credentials $user_name \
     --client-certificate=$client_cert \
     --client-key=$client_key \
     --embed-certs=true \
-    --kubeconfig=$kubeconfig_path
-    on_failure stop "kubectl config set-credentials FAILED"
+    --kubeconfig=$kubeconfig_path \
+    || { log_error "kubectl config set-credentials failed"; return 1; }
 
     kubectl config set-context default \
     --cluster=$cluster_name \
     --user=$user_name \
-    --kubeconfig=$kubeconfig_path
-    on_failure stop "kubectl config set-context FAILED"
+    --kubeconfig=$kubeconfig_path \
+    || { log_error "kubectl config set-cluster failed"; return 1; }
 
-    kubectl config use-context default --kubeconfig=$kubeconfig_path
-    on_failure stop "kubectl config use-context FAILED"
+    kubectl config use-context default --kubeconfig=$kubeconfig_path \
+    || { log_error "kubectl config use-context failed"; return 1; }
 
-    log_success "SUCCESSFULLY generated kubeconfig $kubeconfig_path"
+    print_success "SUCCESSFULLY generated kubeconfig $kubeconfig_path"
 
 }
 

@@ -10,8 +10,11 @@ KUBECONFIGS_OUTPUT=${KUBECONFIGS_DIR}/kubeconfigs
 ENCRYPTION_CONFIG_DIR=${KTHW_HOME}/encryption-config
 ETCD_DIR=${KTHW_HOME}/etcd
 ETCD_DEPLOYMENT=${ETCD_DIR}/deployment
+CP_DIR=${KTHW_HOME}/control-plane
+CP_DEPLOYMENT=${CP_DIR}/deployment
 LOG_LIB=${KTHW_HOME}/bash/logging/logging.sh
 
 ## landing directory on remote hosts
 K8S_HOME="~/.k8s"
 ETCD_HOME="$K8S_HOME/etcd"
+CP_HOME="$K8S_HOME/control-plane"
