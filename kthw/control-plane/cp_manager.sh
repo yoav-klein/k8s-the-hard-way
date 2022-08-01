@@ -142,16 +142,7 @@ _execute_on_nodes() {
 }
 
 
-################################ commands functions ####################
-
-create_deployment() {
-    if [ ! -d "$CP_DEPLOYMENT" ]; then mkdir "$CP_DEPLOYMENT"; else rm $CP_DEPLOYMENT/*; fi
-    _generate_apiserver_service_files || { log_error "failed to generate apiserver service files"; return 1;  } 
-    _generate_controller_manager_service_files || { log_error "failed to generate controller-manager service files"; return 1; }
-    _patch_control_plane_agent_script || { log_error "failed to generate agent script"; return 1;  }
-}
-
-distribute_node() (
+_distribute_node() (
     ip=$1
     name=$2
     set -e 
@@ -181,6 +172,16 @@ distribute_node() (
 
     log_info "distributed files to $name"
 )
+
+################################ commands functions ####################
+
+create_deployment() {
+    if [ ! -d "$CP_DEPLOYMENT" ]; then mkdir "$CP_DEPLOYMENT"; else rm $CP_DEPLOYMENT/*; fi
+    _generate_apiserver_service_files || { log_error "failed to generate apiserver service files"; return 1;  } 
+    _generate_controller_manager_service_files || { log_error "failed to generate controller-manager service files"; return 1; }
+    _patch_control_plane_agent_script || { log_error "failed to generate agent script"; return 1;  }
+}
+
 
 distribute() {
     echo_title "distributing to nodes"
@@ -267,6 +268,19 @@ status() {
    
 }
 
+test_cp() {
+    # right now, this is the best test we have
+    # just run get componetstatuses and see that it returns without timeout
+
+    timeout 10 kubectl --kubeconfig $KUBECONFIGS_OUTPUT/admin.kubeconfig get cs > /dev/null 2>&1
+    if [ $? != 0 ]; then
+        echo -e  "${COLOR_RED}!!! CONTROL PLANE TEST FAILED !!!${RESET}"
+        return 1;
+    fi
+    
+    big_success "CONTROL PLANE IS UP AND RUNNING"
+}
+
 bootstrap() {
     create_deployment
     
@@ -332,19 +346,6 @@ reset() {
 
     print_success "reset etcd succeed"
 }
-
-test_cp() {
-    # right now, this is the best test we have
-    # just run get componetstatuses and see that it returns without timeout
-
-    timeout 10 kubectl --kubeconfig $KUBECONFIGS_OUTPUT/admin.kubeconfig get cs > /dev/null 2>&1
-    if [ $? != 0 ]; then
-        echo -e  "${COLOR_RED}!!! CONTROL PLANE TEST FAILED !!!${RESET}"
-        return 1;
-    fi
-    
-    big_success "CONTROL PLANE IS UP AND RUNNING"
-}
  
 
 #################################################
@@ -361,9 +362,10 @@ usage() {
     echo "uninstall_services- Uninstall above services"
     echo "start             - Start the services"
     echo "stop              - Stop the services"
+    echo "status            - See the status of control plane on nodes"
+    echo "test              - Test to see if control plane is working"
     echo "bootstrap         - Run the control plane from scratch to end"
     echo "reset             - From end to scratch"
-    echo "test              - Test to see if control plane is working"
 }
 
 cmd=$1
