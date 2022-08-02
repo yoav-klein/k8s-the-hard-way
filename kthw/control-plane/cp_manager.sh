@@ -191,7 +191,7 @@ distribute() {
         local ip=$(echo $controller | jq -r ".ip")
         local name=$(echo $controller | jq -r ".name")
 
-        distribute_node $ip $name
+        _distribute_node $ip $name
         [ $? != 0 ] && sc=1
     done
     
