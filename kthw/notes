@@ -8,7 +8,7 @@ To do:
 * consider adding a test function to agents
 * loglevel in manager scripts should be coordinated
 * certificates: error checking and logging
-
+* add "dirty" field to status
 
 Nice to have:
 -----------
@@ -22,6 +22,7 @@ or service is up, since we're talking about 3 services. So there are some edge
 cases which are not taken care of
 
 * leaving nodes with jq installed
+* after running pods, you can't remove /var/lib/kubelet directory: resource busy
 
 
 to learn
