@@ -24,3 +24,15 @@ cases which are not taken care of
 
 * leaving nodes with jq installed
 
+
+to learn
+--------
+
+bash
+* set -e
+
+
+
+kubernetes
+* encryption config
+* cluster networking
