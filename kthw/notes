@@ -6,9 +6,12 @@ To do:
 * consider adding a test function to agents
 * loglevel in manager scripts should be coordinated
 * certificates: error checking and logging
-* add "dirty" field to status
-* split the creating directory step from installing service step 
+* add "dirty" field to status: split the creating directory step from installing service step 
   in all stages
+* Adding tests to workers - kubectl get nodes - count
+* Adding tests to networking
+* smoke tests
+* kthwctl 
 
 Nice to have:
 -----------
