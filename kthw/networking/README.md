@@ -45,3 +45,26 @@ to install the required version of CoreDNS.
 Also, the `.serviceIpRange` will be used. CoreDNS will be assigned 10 in the last octet 
 in this range.
 
+### Run
+
+```
+$ ./networking.sh coredns
+```
+
+### Test
+After this, you should have DNS services in the cluster.
+
+Run this to test:
+```
+$ kubectl run -it --image=yoavklein3/net-tools:latest
+$ nslookup kubernetes
+
+Server:         10.96.0.10
+Address:        10.96.0.10#53
+
+Name:   kubernetes.default.svc.cluster.local
+Address: 10.96.0.1
+
+```
+
+
