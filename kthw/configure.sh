@@ -30,3 +30,7 @@ sudo apt-get install -y jq make
 
 # set hte KUBECONFIG environment variable
 export KUBECONFIG=${KUBECONFIGS_OUTPUT}/admin.kubeconfig
+
+# set up kubectl completion
+source <(kubectl completion bash)
+echo "source <(kubectl completion bash)" > ~/.bashrc
