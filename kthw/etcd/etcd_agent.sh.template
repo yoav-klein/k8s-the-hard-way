@@ -2,8 +2,8 @@
 
 cmd=$1
 
-etcd_home={{etcd_home}}
-etcd_version={{etcd_version}}
+etcd_home={{ETCD_HOME}}
+etcd_version={{ETCD_VERSION}}
 
 
 ## Logging functions
@@ -49,16 +49,60 @@ log_success() {
     echo -e "${GREEN}=== $2 $RESET"
 }
 
-####### API functions
+############# Utility functions 
+
+
+__rmdir_if_exist() {
+    [ -z "$1" ] && { log_error "directory not provided"; return 1; }
+    [ -d $1 ] && { rm -rf $1  || { log_error "failed to remove directory $1"; return 1; } }
+    return 0
+}
+
+__rm_if_exist() {
+    [ -z "$1" ] && { log_error "file not provided"; return 1; }
+    [ -f $1 ] && { rm -rf $1 || { log_error "failed to remove file $1"; return 1; } }
+    return 0
+}
+
+
+_create_directories() {
+    mkdir -p /etc/etcd /var/lib/etcd || { log_error "failed to create directories"; return 1; }
+    log_debug "directories created"
+}
+
+_delete_directories() {
+    __rmdir_if_exist "/etc/etcd"
+    __rmdir_if_exist "/var/lib/etcd"
+    
+    log_debug "directories removed"
+}
+
+_copy_certificates() {
+    cp $etcd_home/ca-etcd.crt /etc/etcd || { log_error "failed to copy certificates"; return 1; }
+    cp $etcd_home/etcd-server.crt /etc/etcd || { log_error "failed to copy certificates"; rm /etc/etcd/*; return 1; }
+    cp $etcd_home/etcd-server.key /etc/etcd || { log_error "failed to copy certificates"; rm /etc/etcd/*; return 1; }
+}
+
+_copy_unit_file() {
+    cp $etcd_home/etcd.service /etc/systemd/system  || { log_error "failed to copy service file"; return 1; }
+}
+
+_delete_unit_file() {
+    __rm_if_exist /etc/systemd/system/etcd.service 
+}
+
+_test_installation() {
+    if etcd --version; then return 0; else return 1; fi
+}
+
+
+######### commands functions ##################
 
 ##### 
 #   installing the etcd software
 #   
-#   Returns 0 on success, 1 on error
 #   on success, installs etcd binaries in /usr/local/bin
-#   idempotent - will only run if not already installed
 #
-#####
 install_etcd_binaries() {
     if [ $(_check_binaries_installed) = "true" ]; then
         log_warning "binaries already installed !"
@@ -93,7 +137,6 @@ install_etcd_binaries() {
 #   on success, uninstalls etcd binaries from /usr/local/bin
 #   runs only if: etcd installed and service unloaded
 #
-#####
 
 uninstall_etcd_binaries() {
     if [ $(_check_binaries_installed) = "false" ]; then
@@ -120,9 +163,8 @@ uninstall_etcd_binaries() {
 #   - copy service file to correct location
 #   - load and enable the service
 #
-#   runs only if in 'landed' state, and service not already loaded
+#   runs only if in 'installed' state, and service not already loaded
 #
-##############
 
 install_service() {
     if [ $(_check_service_loaded) = "true" ]; then
@@ -165,8 +207,6 @@ install_service() {
 #
 #   runs only if service is not active and is loaded
 #
-###################
-
 uninstall_service() {
     if [ $(_check_service_active) = "true" ]; then
         log_warning "service is active, stop service first"
@@ -194,7 +234,7 @@ uninstall_service() {
 #   
 #   runs only if service is loaded
 #
-###############
+
 start_service() {
     if [ $(_check_service_active) = "true" ]; then
         log_warning "service already running"
@@ -226,7 +266,7 @@ start_service() {
 #
 #   runs only if service is active
 #
-##################
+
 stop_service() {
     if [ $(_check_service_active) = "false" ]; then
         log_warning "service already stopped"
@@ -240,56 +280,14 @@ stop_service() {
 
 }
 
-## Utility functions
-_create_directories() {
-    mkdir -p /etc/etcd /var/lib/etcd || { log_error "failed to create directories"; return 1; }
-    log_debug "directories created"
-}
+########## status functions #################
 
-_delete_directories() {
-    if [ ! -d /etc/etcd ]; then
-        log_warning "/etc/etcd doesn't exist"
-    fi
-    if [ ! -d /var/lib/etcd ]; then
-        log_warning "/var/lib/etcd doesn't exist"
-    fi
-    rm -rf /var/lib/etcd /etc/etcd || log_error "failed to remove /var/lib/etcd"
-    log_debug "directories removed"
-    
-}
-
-_copy_certificates() {
-    cp $etcd_home/ca-etcd.crt /etc/etcd || { log_error "failed to copy certificates"; return 1; }
-    cp $etcd_home/etcd-server.crt /etc/etcd || { log_error "failed to copy certificates"; rm /etc/etcd/*; return 1; }
-    cp $etcd_home/etcd-server.key /etc/etcd || { log_error "failed to copy certificates"; rm /etc/etcd/*; return 1; }
-}
-
-_copy_unit_file() {
-    cp $etcd_home/etcd.service /etc/systemd/system  || { log_error "failed to copy service file"; return 1; }
-}
-
-_delete_unit_file() {
-    if [ -f /etc/systemd/system/etcd.service ]; then
-        rm /etc/systemd/system/etcd.service || { log_error "failed to remove unit file"; return 1; }
-    else
-        warn "unit file doesn't exist"
-    fi
-}
-
-_test_installation() {
-    if etcd --version; then return 0; else return 1; fi
-}
-
-
-########## check status functions of etcd
 _check_service_loaded() {
-    test -d /etc/etcd && test -d /var/lib/etcd && \
-    systemctl list-units --all | grep etcd 2>&1 > /dev/null && \
-    systemctl is-enabled etcd 2>&1 > /dev/null && echo "true" || echo "false"
+    systemctl is-enabled etcd > /dev/null 2>&1  && echo "true" || echo "false"
 }
 
 _check_service_active() {
-    systemctl is-active etcd 2>&1 > /dev/null && echo "true" || echo "false"
+    systemctl is-active etcd > /dev/null 2>&1 && echo "true" || echo "false"
 }
 
 _check_binaries_installed() {
@@ -303,12 +301,11 @@ _check_landed() {
 }
 
 status() {
-    json='{"installed": true, "loaded": true}'
     local is_installed=$(_check_binaries_installed)
     local is_loaded=$(_check_service_loaded)
     local is_landed=$(_check_landed)
     local is_active=$(_check_service_active)
-    echo $json | jq ".installed |= $is_installed | .loaded |= $is_loaded | .active |= $is_active | .landed |= $is_landed"
+    echo '{}' | jq ".installed |= $is_installed | .loaded |= $is_loaded | .active |= $is_active | .landed |= $is_landed"
 }
 
 

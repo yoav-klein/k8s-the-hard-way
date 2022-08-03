@@ -82,12 +82,11 @@ This command in the manager iterates over all the controller nodes and runs this
 on the node.
 
 Now, each command may result in one of the following, with the following status codes:
-1. Succeed - 0
-2. Failed - the operation failed - 1
-3. Not Ready - the node is not ready for this command. For exmaple, trying to start the service when it is not yet - 3
-installed
-4. Already done - for example trying to start the service when it's already running. - 2
+0 - Succeess
+1 - Failed - the operation failed 
+3 - Not Ready - the node is not ready for this command. For exmaple, trying to start the service when it is not yet installed
+2 -  Already done - for example trying to start the service when it's already running.
 
-When the manager iterates over the nodes, if we receive 0 or 3 - we go on to the next node
-If we receive 1 or 2, we stop execution, leaving the nodes that succeeded as is.
+When the manager iterates over the nodes, if we receive 0 or 2 - we go on to the next node
+If we receive 1 or 3, we stop execution, leaving the nodes that succeeded as is.
 In this case, the user needs to check why the operation failed on that node, fix it, and run the operation again.

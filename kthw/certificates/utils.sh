@@ -16,6 +16,7 @@
 #
 #######################################
 
+
 gen_certificate_generic() {
     name=$1
     ca_cert=$2
@@ -32,16 +33,15 @@ gen_certificate_generic() {
     else
         conf_file_path="$conf_files_base/$name.conf"
     fi
-    gen_private_key "$name.key"
-    gen_sign_request "$name.key" "$name.csr" "$conf_file_path"
-    on_failure stop "Failed generating sign request for $name !"
+    gen_private_key "$name.key" 
+    gen_sign_request "$name.key" "$name.csr" "$conf_file_path" || return 1
     
     if [ -n "$extensions" ]; then 
         sign_request "$name.csr" $ca_cert $ca_key "$name.crt" $conf_file_path $extensions
     else 
         sign_request "$name.csr" $ca_cert $ca_key "$name.crt"
     fi
-    on_failure stop "Generating certificate for $name failed !"
+    
     rm "$name.csr"
 }
 

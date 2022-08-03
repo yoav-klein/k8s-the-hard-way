@@ -245,7 +245,7 @@ test_workers() {
 }
 
 bootstrap() {
-    create_deployment
+    create_deployment || { log_error "failed creating deployment"; return 1; }
     
     log_debug "distributing worker files"
     distribute
@@ -282,7 +282,7 @@ bootstrap() {
         return 1
     fi
     
-    print_success "bootstraping control plane succeed"
+    print_success "bootstraping worker nodes succeed"
 }
 
 reset() {
@@ -321,7 +321,7 @@ reset() {
         return 1
     fi
 
-    print_success "reset etcd succeed"
+    print_success "reset worker nodes succeed"
 }
  
 

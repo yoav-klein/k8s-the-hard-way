@@ -16,7 +16,7 @@ set_log_level DEBUG
 #   one kube-controller-manager.service
 #   one kube-scheduler.service and kube-scheduler.config for all
 #
-#######
+#
 
 [ -f "$ROOT_DATA_FILE" ] || { log_error "root data file not found!"; exit 1 ;}
 
@@ -27,18 +27,7 @@ cp_home="$CP_HOME"
 username=$(jq -r ".machinesUsername" $ROOT_DATA_FILE)
 agent_script="$CP_HOME/cp_agent.sh"
 
-_generate_controller_manager_service_files() {
-    local template=kube-controller-manager.service.template
-    local cluster_cidr=$(jq -r ".clusterCidr" $ROOT_DATA_FILE)
-    local cluster_name=$(jq -r ".clusterName" $ROOT_DATA_FILE)
 
-    sed "s@{{CLUSTER_CIDR}}@${cluster_cidr}@" $template | \
-       sed "s@{{SERVICE_IP_RANGE}}@${service_ip_range}@" | \
-       sed "s/{{CLUSTER_NAME}}/${cluster_name}/" > $CP_DEPLOYMENT/kube-controller-manager.service
-
-    if [ $? != 0 ]; then log_error "failed to generate kube-controller-manager service file"; return 1; fi
-    log_info "control-plane:: generated kube-controller-manager.service"
-}
 
 _compose_etcd_nodes_var() {
     server_ips=($(jq -r ".controllers[].ip" $ROOT_DATA_FILE))
@@ -57,11 +46,10 @@ _generate_apiserver_service_files() {
     _compose_etcd_nodes_var
     
     local k8s_public_address=$(jq -r ".apiServerAddress.publicIp" $ROOT_DATA_FILE)
-    local num_controllers=${#controllers[@]}
     local template=kube-apiserver.service.template
-    for i in $(seq 0 $(( num_controllers - 1 )) ); do
-        ip=$(echo ${controllers[i]} | jq -r ".ip")
-        name=$(echo ${controllers[i]} | jq -r ".name")
+    for controller in ${controllers[@]}; do
+        ip=$(echo $controller | jq -r ".ip")
+        name=$(echo $controller | jq -r ".name")
     
         sed "s/{{INTERNAL_IP}}/${ip}/" $template | \
             sed "s@{{ETCD_NODES}}@$etcd_nodes@" | \
@@ -76,33 +64,30 @@ _generate_apiserver_service_files() {
     
 }
 
+_generate_controller_manager_service_files() {
+    local template=kube-controller-manager.service.template
+    local cluster_cidr=$(jq -r ".clusterCidr" $ROOT_DATA_FILE)
+    local cluster_name=$(jq -r ".clusterName" $ROOT_DATA_FILE)
+
+    sed "s@{{CLUSTER_CIDR}}@${cluster_cidr}@" $template | \
+       sed "s@{{SERVICE_IP_RANGE}}@${service_ip_range}@" | \
+       sed "s/{{CLUSTER_NAME}}/${cluster_name}/" > $CP_DEPLOYMENT/kube-controller-manager.service
+
+    if [ $? != 0 ]; then log_error "failed to generate kube-controller-manager service file"; return 1; fi
+    log_info "control-plane:: generated kube-controller-manager.service"
+}
+
+_generate_encryption_config_file() {
+    local secret=$(head -c 32 /dev/urandom | base64)
+    template=encryption-config.yaml.template
+    sed "s@{{SECRET}}@${secret}@"  $template > $CP_DEPLOYMENT/encryption-config.yaml
+}
+
 _patch_control_plane_agent_script() {
     k8s_version=$(jq -r ".versions.kubernetes" $ROOT_DATA_FILE)
     sed "s/{{K8S_VERSION}}/$k8s_version/" cp_agent.sh.template  | \
     sed "s@{{CP_HOME}}@$CP_HOME@" > $CP_DEPLOYMENT/cp_agent.sh
     chmod +x $CP_DEPLOYMENT/cp_agent.sh
-}
-
-
-clean_nodes() {
-    echo_title "cleaning nodes"
-    for controller in ${controllers[@]}; do
-        ip=$(echo $controller | jq -r ".ip")
-        name=$(echo $controller | jq -r ".name")
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip" $cp_home/setup.sh reset
-
-        print_success "control-plane:: clean up $name"
-    done
-}
-
-call_test() {
-    test
-    if [ $? = 0 ]; then
-        big_success "ETCD IS UP AND RUNNING"
-    else
-        log_error "ETCD FAILED !"
-        exit 1
-    fi
 }
 
 
@@ -160,10 +145,10 @@ _distribute_node() (
     scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-kubelet-client.key" "$username@$ip:$cp_home"
     scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.crt" "$username@$ip:$cp_home"
     scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.key" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$ENCRYPTION_CONFIG_DIR/encryption-config.yaml" "$username@$ip:$cp_home"
     scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-scheduler.kubeconfig" "$username@$ip:$cp_home"
     scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-controller-manager.kubeconfig" "$username@$ip:$cp_home"
     scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/cp_agent.sh" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/encryption-config.yaml" "$username@$ip:$cp_home"
     scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/kube-controller-manager.service" "$username@$ip:$cp_home"
     scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/$name.kube-apiserver.service" "$username@$ip:$cp_home/kube-apiserver.service"
     
@@ -179,6 +164,7 @@ create_deployment() {
     if [ ! -d "$CP_DEPLOYMENT" ]; then mkdir "$CP_DEPLOYMENT"; else rm $CP_DEPLOYMENT/*; fi
     _generate_apiserver_service_files || { log_error "failed to generate apiserver service files"; return 1;  } 
     _generate_controller_manager_service_files || { log_error "failed to generate controller-manager service files"; return 1; }
+    _generate_encryption_config_file || { log_error "failed to generate encryption config file"; return 1; }
     _patch_control_plane_agent_script || { log_error "failed to generate agent script"; return 1;  }
 }
 
@@ -282,7 +268,7 @@ test_cp() {
 }
 
 bootstrap() {
-    create_deployment
+    create_deployment || { log_error "failed creating deployment"; return 1; }
     
     log_debug "distributing control plane files"
     distribute
@@ -344,7 +330,7 @@ reset() {
         return 1
     fi
 
-    print_success "reset etcd succeed"
+    print_success "reset control plane succeed"
 }
  
 

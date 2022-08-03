@@ -6,7 +6,7 @@ source ../lib
 source ../.env
 source $LOG_LIB
 
-
+set_log_level "DEBUG"
 
 # check data file exists
 [ -f "$ROOT_DATA_FILE" ] || { log_error "$ROOT_DATA_FILE not found !"; exit 1; }
@@ -23,7 +23,6 @@ agent_script="$ETCD_HOME/etcd_agent.sh"
 #   should be of the form: 
 #       controller1=https://10.0.1.2:2380,controller2=https://10.0.1.3:2380,...
 #
-#####
 
 function _compose_node_list_var() {
     server_ips=($(jq -r ".controllers[].ip" $ROOT_DATA_FILE))
@@ -43,7 +42,6 @@ function _compose_node_list_var() {
 #   generates a etcd.service file for each
 #   node in the etcd cluster.
 #
-#################
 
 _generate_service_files() {
     _compose_node_list_var
@@ -66,8 +64,8 @@ _patch_agent_script() {
     [ -f "etcd_agent.sh.template" ] || { log_error "etcd_agent.sh.template file not found !"; return 1; }
 
     etcd_version=$(jq -r ".versions.etcd" $ROOT_DATA_FILE)
-    sed "s/{{etcd_version}}/$etcd_version/" etcd_agent.sh.template | \
-        sed "s/{{NUM_CONTROLLERS}}/${#controllers[@]}/" | sed "s@{{etcd_home}}@${ETCD_HOME}@" > $ETCD_DEPLOYMENT/etcd_agent.sh
+    sed "s/{{ETCD_VERSION}}/$etcd_version/" etcd_agent.sh.template | \
+        sed "s/{{NUM_CONTROLLERS}}/${#controllers[@]}/" | sed "s@{{ETCD_HOME}}@${ETCD_HOME}@" > $ETCD_DEPLOYMENT/etcd_agent.sh
     chmod +x $ETCD_DEPLOYMENT/etcd_agent.sh
 }
 
@@ -84,7 +82,9 @@ _execute_on_nodes() {
     for controller in ${controllers[@]}; do
         ip=$(echo $controller | jq -r '.ip')
         name=$(echo $controller | jq -r '.name')
-        
+
+        log_debug "executing $function on $name"
+
         ssh -i $SSH_PRIVATE_KEY "$username@$ip"  "sudo $agent_script $function"
         sc=$?
         log_debug "$name returned $sc"
@@ -106,6 +106,36 @@ _execute_on_nodes() {
     done
 }
 
+############
+#
+#   this function runs in a subshell, hence the ( )
+#   this is so that we can use set -e and not terminate the whoel script
+#   NOTE that it's not a good practice to use set -e, but we do it with caution here   
+#
+_distribute_node() (
+    ip=$1
+    name=$2
+    set -e 
+    trap "log_error 'failed distributing to $name, cleaning..'; ssh -i $SSH_PRIVATE_KEY $username@$ip rm -rf $etcd_home" ERR
+
+    log_debug "distributing to $name"
+    
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $ETCD_HOME"
+
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca-etcd.crt" "$username@$ip:$ETCD_HOME"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/etcd-server-${name}.crt" "$username@$ip:$ETCD_HOME/etcd-server.crt"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/etcd-server-${name}.key" "$username@$ip:$ETCD_HOME/etcd-server.key"
+    scp -i $SSH_PRIVATE_KEY "$ETCD_DEPLOYMENT/etcd_agent.sh" "$username@$ip:$ETCD_HOME"
+    scp -i $SSH_PRIVATE_KEY "$ETCD_DEPLOYMENT/$name.etcd.service" "$username@$ip:$ETCD_HOME/etcd.service"
+    
+    # install jq on nodes
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo apt-get update" > /dev/null
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq" > /dev/null
+    
+    log_info "distributed files to $name"
+)
+
+
 
 #################### commands functions ##########################
 
@@ -114,31 +144,30 @@ create_deployment() {
         _generate_service_files || return 1
         _patch_agent_script || return 1
 
-        print_success "created deployment"
+        log_info "created deployment"
 }
 
 
-distribute_etcd_files() {
+
+distribute() {
+    echo_title "distributing to nodes"
+    
+    local sc=0
     for controller in ${controllers[@]}; do
-        ip=$(echo $controller | jq -r ".ip")
-        name=$(echo $controller | jq -r ".name")
-        
-        log_debug "ssh -i $SSH_PRIVATE_KEY \"$username@$ip\" \"mkdir -p $ETCD_HOME\""
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $ETCD_HOME"
        
-        run_scp $username $ip "$ETCD_DEPLOYMENT/$name.etcd.service" "$ETCD_HOME/etcd.service" $SSH_PRIVATE_KEY
-        run_scp $username $ip "$CERTIFICATES_OUTPUT/ca-etcd.crt" "$ETCD_HOME/"  $SSH_PRIVATE_KEY
-        run_scp $username $ip "$CERTIFICATES_OUTPUT/etcd-server-${name}.crt" "$ETCD_HOME/etcd-server.crt" $SSH_PRIVATE_KEY
-        run_scp $username $ip "$CERTIFICATES_OUTPUT/etcd-server-${name}.key" "$ETCD_HOME/etcd-server.key" $SSH_PRIVATE_KEY
-        run_scp $username $ip "$ETCD_DEPLOYMENT/etcd_agent.sh" "$ETCD_HOME/" $SSH_PRIVATE_KEY
-        
-        # install jq on nodes
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo apt-get update" > /dev/null
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq" > /dev/null
-        
-        log_info "copied files to $name"
+        local ip=$(echo $controller | jq -r ".ip")
+        local name=$(echo $controller | jq -r ".name")
+
+        _distribute_node $ip $name
+        [ $? != 0 ] && sc=1
     done
+    
+    [ $sc = 0 ] && log_info "distributed files to nodes"
+
+    return $sc
 }
+
+
 ## delete the etcd_home directory on all nodes
 # if some node is in either installed, loaded or active state, abort
 # and move to next node
@@ -225,11 +254,17 @@ status() {
    
 }
 
+###################
+#
+#   try running all the steps
+#   from scratch to runnin service
+#
+
 bootstrap() {
-    create_deployment
+    create_deployment || { log_error "failed creating deployment"; return 1; }
     
     log_debug "distributing etcd files"
-    distribute_etcd_files
+    distribute
     if [ $? != 0 ]; then
         log_error "distribution of etcd files failed"
         return 1
@@ -318,7 +353,7 @@ usage() {
 
 case $cmd in
     create_deployment) create_deployment ;;
-    distribute) distribute_etcd_files ;;
+    distribute) distribute ;;
     clean_nodes) clean_nodes ;;
     install_binaries) install_binaries ;;
     uninstall_binaries) uninstall_binaries ;;  

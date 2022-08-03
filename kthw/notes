@@ -5,10 +5,9 @@ To do:
 * Worker nodes
 * Consider ansible?
 * Consider: How to make sure that when running control-plane, etcd is already up?
-* Change distribute in etcd to be like conrol plane
-* etcd manager and agent needs a refactor
 * consider adding a test function to agents
 * loglevel in manager scripts should be coordinated
+* certificates: error checking and logging
 
 
 Nice to have:
