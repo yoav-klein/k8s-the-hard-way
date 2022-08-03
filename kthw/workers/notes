@@ -1,0 +1,14 @@
+
+## to make sure
+- what is the meaning of the hostname-override thing?
+- why is CoreDNS hard coded for 10.32.0.10??
+
+## about running kubelet
+
+The following flags are not accepted by the current version of k8s:
+
+  --image-pull-progress-deadline=2m \
+  --allow-privileged=true
+  --network-plugin=cni \
+
+  check what about them

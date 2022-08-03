@@ -1,6 +1,6 @@
-#/bin/bash
+#!/bin/bash
 
-
+[ ! -f ../.env ] && { echo "run configure.sh first"; exit 1; }
 source ../.env
 source ../lib
 
@@ -222,7 +222,7 @@ clean_nodes() {
             fi
         fi
         
-        # try to clean etcd_home anyway
+        # try to clean cp_home anyway
         ssh -i $SSH_PRIVATE_KEY "$username@$ip" rm -rf $cp_home || { log_error "failed to clean $node"; continue; }
 
         log_info "cleaned node $name"

@@ -25,7 +25,7 @@ log() {
         echo "Usage: log <message>"
         return
     fi
-    echo "$log_level: etcd_agent:${FUNCNAME[2]}:${LINENO[2]} $message"
+    echo "$log_level: etcd_agent:${FUNCNAME[2]}:${LINENO[1]} $message"
 }
 
 log_warning() {

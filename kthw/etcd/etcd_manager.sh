@@ -1,5 +1,7 @@
 #!/bin/bash
 
+[ ! -f ../.env ] && { echo "run configure.sh first"; exit 1; }
+
 source ../lib
 source ../.env
 source $LOG_LIB
@@ -132,7 +134,7 @@ distribute_etcd_files() {
         
         # install jq on nodes
         ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo apt-get update" > /dev/null
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip" "DEBIAN_FRONTEND=noninteractive sudo apt-get install -y jq" > /dev/null
+        ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq" > /dev/null
         
         log_info "copied files to $name"
     done

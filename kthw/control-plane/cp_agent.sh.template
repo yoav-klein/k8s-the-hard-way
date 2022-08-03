@@ -26,7 +26,7 @@ log() {
         echo "Usage: log <message>"
         return
     fi
-    echo "$log_level: cp_agent:${FUNCNAME[2]}:${BASH_LINENO[2]} $message"
+    echo "$log_level: cp_agent:${FUNCNAME[2]}:${BASH_LINENO[1]} $message"
 }
 
 log_warning() {
@@ -145,10 +145,10 @@ install_binaries() {
     
     echo_title "installing binaries"
 
-    local kube_scheduler_url="https://dl.k8s.io/${k8s_version}/bin/linux/amd64/kube-scheduler"
-    local kube_apiserver_url="https://dl.k8s.io/${k8s_version}/bin/linux/amd64/kube-apiserver"
-    local kube_controller_manager_url="https://dl.k8s.io/${k8s_version}/bin/linux/amd64/kube-controller-manager"
-    local kubectl_url="https://dl.k8s.io/${k8s_version}/bin/linux/amd64/kubectl"
+    local kube_scheduler_url="https://dl.k8s.io/v${k8s_version}/bin/linux/amd64/kube-scheduler"
+    local kube_apiserver_url="https://dl.k8s.io/v${k8s_version}/bin/linux/amd64/kube-apiserver"
+    local kube_controller_manager_url="https://dl.k8s.io/v${k8s_version}/bin/linux/amd64/kube-controller-manager"
+    local kubectl_url="https://dl.k8s.io/v${k8s_version}/bin/linux/amd64/kubectl"
     
     curl -sSfL $kube_scheduler_url -o /tmp/kube-scheduler || { log_error "failed downloading kube-scheduler"; return 1 ; }
     curl -sSfL $kube_apiserver_url -o /tmp/kube-apiserver || { log_error "failed downloading kube-apiserver"; return 1 ; } 
@@ -393,7 +393,6 @@ case $cmd in
     uninstall_services) uninstall_services;;
     start) start_services;; 
     stop) stop_services;;
-    test) test_control_plane;;
     status) status;;
     *) usage;;
 esac
@@ -405,7 +404,7 @@ esac
 #        there's a probelm - it returns true only if all are true
 #        so the stop_services function won't do anything in case only part of them are active
 #
-#
+#   * __rmdir_if_exist and __rm_if_exist
 
 
 ## LIMITATIONS

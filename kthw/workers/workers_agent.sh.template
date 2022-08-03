@@ -1,0 +1,448 @@
+#!/bin/bash
+
+workers_home={{WORKERS_HOME}}
+
+## Logging functions
+
+GREEN="\e[32;1m"
+RED="\e[31;1m"
+RESET="\e[0m"
+TITLE="\e[0;44m"
+YELLOW="\e[33;1m"
+
+echo_title() {
+    echo -e "${TITLE} $1 ${RESET}"
+}
+
+log() {
+    log_level=$1; shift
+    message=$1
+    if [ -z "$message" ]; then
+        echo "Usage: log <message>"
+        return
+    fi
+    echo "$log_level: cp_agent:${FUNCNAME[2]}:${BASH_LINENO[1]} $message"
+}
+
+log_warning() {
+    log WARNING "$1"
+}
+
+log_info() {
+    log INFO "$1"
+}
+
+
+log_debug() {
+    log DEBUG "$1"
+}
+
+log_error() {
+    log ERROR "$1"
+}
+
+log_success() {
+    echo -e "${GREEN}=== $2 $RESET"
+}
+
+#####################################################################
+
+
+### optional, skipped in the meantime
+#
+# - crictl
+# - kubectl
+# - runsc
+
+containerd_version="{{CONTAINERD_VERSION}}"
+runc_version="{{RUNC_VERSION}}"
+cniplugins_version="{{CNIPLUGINS_VERSION}}"
+k8s_version="{{K8S_VERSION}}"
+
+
+__rmdir_if_exist() {
+    [ -z "$1" ] && { log_error "directory not provided"; return 1; }
+    [ -d $1 ] && { rm -rf $1  || { log_error "failed to remove directory $1"; return 1; } }
+}
+
+__rm_if_exist() {
+    [ -z "$1" ] && { log_error "file not provided"; return 1; }
+    [ -f $1 ] && { rm -rf $1 || { log_error "failed to remove file $1"; return 1; } }
+}
+
+
+_install_runc() {
+    log_debug "installing runc"
+    local runc_url="https://github.com/opencontainers/runc/releases/download/v${runc_version}/runc.amd64"
+    curl -sSfL $runc_url -o /tmp/runc || { log_error "failed to download runc"; return 1; } 
+    chmod +x /tmp/runc
+    mv /tmp/runc /usr/local/sbin || { log_error "failed to install runc"; return 1; }
+}
+
+
+_uninstall_runc() {
+    log_debug "uninsatlling runc"
+    rm /usr/local/sbin/runc
+}
+
+_install_cni_plugins() {
+    log_debug "installing cni plugins"
+    local cniplugins_url="https://github.com/containernetworking/plugins/releases/download/v${cniplugins_version}/cni-plugins-linux-amd64-v${cniplugins_version}.tgz"
+    curl -sSfL $cniplugins_url -o /tmp/cniplugins.tgz || { log_error "failed to download cni-plugins"; return 1; }
+    mkdir -p /opt/cni/bin || { log_error "failed to create /opt/cni/bin"; return 1; } 
+    tar Cxzf /opt/cni/bin /tmp/cniplugins.tgz || { log_error "failed opening tar file"; _uninstall_cni_plugins; return 1; }
+    mkdir -p /etc/cni/net.d || { log_error "failed to create /etc/cni/net.d"; _uninstall_cni_plugins; return 1; }
+}
+
+_uninstall_cni_plugins() {
+    log_debug "uninstalling cni plugins"
+    __rmdir_if_exist "/opt/cni"
+    __rmdir_if_exist "/etc/cni"
+}
+
+# uninstall containerd software (!) and all its side effects
+_uninstall_containerd() {
+    local sc=0
+    log_debug "uninstalling containerd"
+    systemctl is-active containerd > /dev/null 2>&1 && systemctl stop containerd
+    __rm_if_exist "/etc/systemd/system/containerd.service"
+
+    __rmdir_if_exist "/etc/containerd"
+    rm /usr/local/bin/{ctr,containerd*} 2> /dev/null
+    
+    systemctl daemon-reload
+
+    return $sc
+}
+
+## downloads containerd software (!) and sets up everything for it
+## and starts the service
+_install_containerd() {
+    log_debug "installing containerd binaries"
+    local containerd_url="https://github.com/containerd/containerd/releases/download/v${containerd_version}/containerd-${containerd_version}-linux-amd64.tar.gz"
+    curl -sSfL $containerd_url | tar xzC /usr/local/bin --strip-components=1 || { log_error "failed to download and extract containerd binaries"; return 1; }
+    
+    mkdir -p /etc/containerd || { log_error "failed to mkdir /etc/containerd"; _uninstall_containerd; return 1; }
+    cp ${workers_home}/config.toml /etc/containerd || { log_error "failed to install config.toml"; _uninstall_containerd; return 1; }
+    cp ${workers_home}/containerd.service /etc/systemd/system  || { log_error "failed to install containerd.service"; _uninstall_containerd; return 1; }
+    
+    systemctl daemon-reload
+    systemctl enable containerd
+    systemctl start containerd
+
+    systemctl is-enabled containerd > /dev/null 2>&1 || { log_error "failed to enable containerd service"; _uninstall_containerd; }
+    systemctl is-active containerd > /dev/null 2>&1 ||  { log_error "failed to start containerd service"; _uninstall_containerd; }
+}
+
+_create_installation_directories() {
+    sudo mkdir -p /var/lib/kubelet \
+        /var/lib/kube-proxy \
+        /var/lib/kubernetes \
+        /var/run/kubernetes \
+        /etc/cni/net.d
+}
+
+_copy_files_to_locations() {
+    cp ${workers_home}/kubelet.crt /var/lib/kubelet || return 1
+    cp ${workers_home}/kubelet.key /var/lib/kubelet || return 1
+    cp ${workers_home}/kubelet.kubeconfig /var/lib/kubelet || return 1
+    cp ${workers_home}/ca.crt /var/lib/kubernetes || return 1
+    cp ${workers_home}/kubelet-config.yaml /var/lib/kubelet || return 1
+    cp ${workers_home}/kube-proxy.kubeconfig /var/lib/kube-proxy || return 1
+    cp ${workers_home}/kube-proxy-config.yaml /var/lib/kube-proxy || return 1
+
+}
+
+_install_kube_service_files() {
+    cp ${workers_home}/kubelet.service /etc/systemd/system || return 1
+    cp ${workers_home}/kube-proxy.service /etc/systemd/system || return 1
+}
+
+_delete_kube_service_files() {
+    __rm_if_exist "/etc/systemd/system/kubelet.service"
+    __rm_if_exist "/etc/systemd/system/kube-proxy.service"
+}
+
+_create_kube_dirs() {
+    mkdir -p /var/lib/kubelet || return 1
+    mkdir -p /var/lib/kubernetes || return 1
+    mkdir -p /var/lib/kube-proxy  || return 1
+    mkdir -p /var/run/kubernetes || return 1
+}
+
+_delete_kube_dirs() {
+    __rmdir_if_exist "/var/lib/kubelet"
+    __rmdir_if_exist "/var/lib/kubernetes"
+    __rmdir_if_exist "/var/lib/kube-proxy"
+    __rmdir_if_exist "/var/run/kubernetes"
+}
+
+_enable_services() {
+    systemctl daemon-reload
+    systemctl enable kubelet || return 1
+    systemctl enable kube-proxy || return 1
+}
+
+########################## commands functions #################################
+
+################
+#
+#   install and configure all the prerequisites 
+#   for the kubelet and kube-proxy
+#
+install_prerequisites() {
+     if [ "$(_check_prerequisites_installed)" = "true" ]; then
+        log_warning "prerequisites already installed"
+        return 2
+    fi
+    
+    echo_title "installing prerequisites"
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update || { log_error "apt-get update failed"; return 1; }
+    apt-get install -y socat conntrack ipset || { log_error "apt-get install dependencies failed"; return 1; }
+
+    _install_runc || { log_error "failed to install runc"; return 1; }
+    _install_cni_plugins ||{ log_error "failed to install cni-plugins";  _uninstall_runc; return 1; }
+    _install_containerd || { log_error "failed to install containerd"; _uninstall_cni_plugins; _uninstall_runc; return 1; }
+
+    # disable swap
+    swapoff -a
+}
+
+################
+#
+#   uninstall containerd and all 
+#   its prerequisites
+#
+uninstall_prerequisites() {
+    if [ "$(_check_prerequisites_installed)" = "false" ]; then
+        log_warning "prerequisites aren't installed"
+        return 2
+    fi
+     if [ "$(_check_binaries_installed)" = "true" ]; then
+        log_warning "binaries are installed, uninstall them first"
+        return 3
+    fi
+    
+    echo_title "uninstalling prerequisites"
+    swapon -a
+
+
+    _uninstall_containerd || { log_warning "failed to uninstall containerd software"; }
+    _uninstall_runc || { log_warning "failed to uninstall runc"; }
+    _uninstall_cni_plugins || { log_warning "failed to uninstall cni plugins"; }
+}
+
+install_kube_binaries() {
+    if [ "$(_check_prerequisites_installed)" = "false" ]; then
+        log_warning "prerequisites aren't installed, install them first"
+        return 3
+    fi
+     if [ "$(_check_binaries_installed)" = "true" ]; then
+        log_warning "binaries already installed"
+        return 2
+    fi
+    
+    echo_title "installing binaries"
+    local kube_proxy_url="https://dl.k8s.io/v${k8s_version}/bin/linux/amd64/kube-proxy"
+    local kubelet_url="https://dl.k8s.io/v${k8s_version}/bin/linux/amd64/kubelet"
+    curl -sSfL -o /tmp/kubelet $kubelet_url || { log_error "failed downloading kubelet"; return 1;  }
+    curl -sSfL -o /tmp/kube-proxy $kube_proxy_url || { log_error "failed downloading kube-proxy"; return 1;  }
+    chmod +x /tmp/kube-proxy
+    chmod +x /tmp/kubelet
+
+    mv /tmp/kube-proxy /usr/local/bin
+    mv /tmp/kubelet /usr/local/bin
+    
+    log_info "installed kube binaries"
+}
+
+uninstall_kube_binaries() {
+    if [ "$(_check_binaries_installed)" = "false" ]; then
+        log_warning "binaries already uninstalled"
+        return 2
+    fi
+    if [ "$(_check_services_loaded)" = "true" ]; then
+        log_warning "services are loaded, unload them first"
+        return 3
+    fi
+    
+    echo_title "uninstalling binaries"
+    rm /usr/local/bin/{kubelet,kube-proxy} 2>/dev/null || { log_warning "failed to remove kube binaries"; return 1; }
+
+}
+
+install_services() {
+     if [ "$(_check_services_loaded)" = "true" ]; then
+        log_warning "services already loaded"
+        return 2
+    fi
+    if [ "$(_check_binaries_installed)" = "false" ]; then
+        log_warning "binaries aren't installed, install them first"
+        return 3
+    fi
+
+    echo_title "installing services"
+     
+    _create_kube_dirs || { log_error "failed to create directories for kubelet and kube-proxy"; _delete_kube_dirs; return 1; }
+    _copy_files_to_locations || { log_error "failed to copy kubelet and kube-proxy files to locations"; \
+ _delete_kube_dirs; return 1; } 
+    _install_kube_service_files || { log_error "failed to install service files"; _delete_kube_dirs; \
+ _delete_kube_service_files; return 1; }
+    
+    _enable_services || { log_error "failed enabling kubelet and/or kube-proxy"; return 1; }
+
+    log_info "installed services"
+}
+
+uninstall_services() { 
+    if [ "$(_check_services_loaded)" = "false" ]; then
+        log_warning "services already unloaded"
+        return 2
+    fi
+    if [ "$(_check_services_active)" = "true" ]; then
+        log_warning "services are active, stop them first"
+        return 3
+    fi
+        
+    echo_title "uninstalling services"
+
+    _delete_kube_dirs
+    _delete_kube_service_files
+
+    systemctl daemon-reload || { log_error "failed to reload daemon"; return 1; }
+    
+    log_info "uninstalled_services"
+}
+
+start_services() {
+     if [ "$(_check_services_active)" = "true" ]; then
+        log_warning "services already active"
+        return 2
+    fi 
+    if [ "$(_check_services_loaded)" = "false" ]; then
+        log_warning "services aren't intalled, install them first"
+        return 3
+    fi
+    
+    echo_title  "starting services"
+
+    systemctl start kubelet || { log_error "failed to start kubelet"; return 1; }
+    systemctl start kube-proxy || { log_error "failed to start kube-proxy"; return 1; }
+    
+}
+
+stop_services() {
+     if [ "$(_check_services_active)" = "false" ]; then
+        log_warning "services already stopped"
+        return 2
+    fi
+    
+    echo_title "stopping services"
+    systemctl stop kubelet || { log_error "failed to stop kubelet";  }
+    systemctl stop kube-proxy || { log_error "failed to stop kube-proxy";  }
+}
+
+
+################ status functions #####################
+
+
+status() {
+    local is_installed=$(_check_binaries_installed)
+    local is_loaded=$(_check_services_loaded)
+    local is_landed=$(_check_landed)
+    local is_active=$(_check_services_active)
+    local is_prereq_installed=$(_check_prerequisites_installed)
+    echo '{}' | jq ".prerequisites_installed |= $is_prereq_installed \
+        | .installed |= $is_installed
+        | .loaded |= $is_loaded \
+        | .active |= $is_active \
+        | .landed |= $is_landed"
+}
+
+
+# the indication is whether or not container service is active
+_check_prerequisites_installed() {
+    systemctl is-active containerd > /dev/null 2>&1 && echo "true" || echo "false"
+}
+
+_check_binaries_installed() {
+    [ -f /usr/local/bin/kubelet ] && [ -f /usr/local/bin/kube-proxy ] && echo "true" || echo "false" 
+}
+
+_check_services_loaded() {
+    systemctl is-enabled kubelet > /dev/null 2>&1 && \
+    systemctl is-enabled kube-proxy > /dev/null 2>&1 && echo "true" || echo "false"
+}
+
+_check_services_active() {
+    systemctl is-active kubelet > /dev/null 2>&1 && \
+    systemctl is-active kube-proxy > /dev/null 2>&1 && echo "true" || echo "false"
+}
+
+_check_landed() {    
+    ### file_list - a global variable that holds the file list necessary for the control plane
+    local file_list=(
+    ca.crt \
+    kubelet.crt
+    kubelet.key \
+    kubelet.kubeconfig \
+    kube-proxy.kubeconfig \
+    kubelet-config.yaml \
+    kubelet.service \
+    kube-proxy-config.yaml \
+    kube-proxy.service \
+    config.toml \
+    containerd.service
+    )
+    
+    for file in ${file_list[@]}; do
+        [ ! -f "$workers_home/$file" ]  && { echo "false"; return ;}
+    done
+
+    echo "true"
+}
+
+
+usage() {
+    echo "Usage:"
+    echo "workers_agent.sh <command>"
+    echo ""
+    echo "Commands:"
+    echo "install_prerequisites   - Install containerd and all the prerequisites"
+    echo "uninstall_prerequisites - The opposite of the above"
+    echo "install_binaries        - Install the control plane binaries"
+    echo "uninstall_binaries      - Uninstall the control plane binaries"
+    echo "install_services        - Install the control plane services"
+    echo "uninstall_services      - Uninstal the control plane services"
+    echo "start                   - Start the control plane"
+    echo "stop                    - Stop the control plane"
+    echo "status                  - Get the control plane status of the node"
+
+}
+
+
+
+### verify running with sudo
+user_id=`id -u`
+if [ $user_id -ne 0 ]; then
+    echo "Must run as sudo"
+    exit 1
+fi
+
+cmd=$1
+
+case $cmd in
+    install_prerequisites) install_prerequisites;;
+    uninstall_prerequisites) uninstall_prerequisites;;
+    install_binaries) install_kube_binaries;;
+    uninstall_binaries) uninstall_kube_binaries;;
+    install_services) install_services;;
+    uninstall_services) uninstall_services;;
+    start) start_services;; 
+    stop) stop_services;;
+    status) status;;
+    *) usage;;
+esac
+
+

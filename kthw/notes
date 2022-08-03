@@ -6,6 +6,9 @@ To do:
 * Consider ansible?
 * Consider: How to make sure that when running control-plane, etcd is already up?
 * Change distribute in etcd to be like conrol plane
+* etcd manager and agent needs a refactor
+* consider adding a test function to agents
+* loglevel in manager scripts should be coordinated
 
 
 Nice to have:
@@ -19,4 +22,5 @@ limitations:
 or service is up, since we're talking about 3 services. So there are some edge
 cases which are not taken care of
 
+* leaving nodes with jq installed
 
