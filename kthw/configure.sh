@@ -1,5 +1,7 @@
 #!/bin/bash
 
+__configure_sourced__=1
+
 [ -f "./kthw_key" ] || { echo "Create a kthw_key file with the private key to access all machines"; exit 1 ; }
 chmod 600 ./kthw_key
 
@@ -13,6 +15,7 @@ sudo mv ./kubectl /usr/local/bin
 
 ## Genearate a .env file 
 sed  "s@{{pwd}}@$(pwd)@" env > .env
+source .env
 
 ## Disable SSH strict host key checking
 #sudo sed -i -E 's/#[[:space:]]*(StrictHostKeyChecking[[:space:]]*)ask/\1no/' /etc/ssh/ssh_config
@@ -25,3 +28,5 @@ git clone https://github.com/yoav-klein/bash
 sudo apt-get update
 sudo apt-get install -y jq make
 
+# set hte KUBECONFIG environment variable
+export KUBECONFIG=${KUBECONFIGS_OUTPUT}/admin.kubeconfig
