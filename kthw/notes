@@ -2,8 +2,6 @@
 
 To do:
 -----
-* Worker nodes
-* Consider ansible?
 * Consider: How to make sure that when running control-plane, etcd is already up?
 * consider adding a test function to agents
 * loglevel in manager scripts should be coordinated
