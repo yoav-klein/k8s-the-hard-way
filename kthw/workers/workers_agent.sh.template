@@ -78,13 +78,13 @@ _install_runc() {
     local runc_url="https://github.com/opencontainers/runc/releases/download/v${runc_version}/runc.amd64"
     curl -sSfL $runc_url -o /tmp/runc || { log_error "failed to download runc"; return 1; } 
     chmod +x /tmp/runc
-    mv /tmp/runc /usr/local/sbin || { log_error "failed to install runc"; return 1; }
+    mv /tmp/runc /usr/local/bin || { log_error "failed to install runc"; return 1; }
 }
 
 
 _uninstall_runc() {
     log_debug "uninsatlling runc"
-    rm /usr/local/sbin/runc
+    rm /usr/local/bin/runc
 }
 
 _install_cni_plugins() {
@@ -192,6 +192,9 @@ _enable_services() {
 #   install and configure all the prerequisites 
 #   for the kubelet and kube-proxy
 #
+#   also, configure the kernel parameter to allow forwarding, for 
+#   kubenetes networking
+
 install_prerequisites() {
      if [ "$(_check_prerequisites_installed)" = "true" ]; then
         log_warning "prerequisites already installed"
@@ -209,6 +212,10 @@ install_prerequisites() {
 
     # disable swap
     swapoff -a
+
+    # allow forwarding
+    sudo sysctl net.ipv4.conf.all.forwarding=1
+    echo "net.ipv4.conf.all.forwarding=1" | sudo tee -a /etc/sysctl.conf
 }
 
 ################

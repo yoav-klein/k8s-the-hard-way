@@ -133,7 +133,7 @@ create_deployment() {
     _patch_workers_agent_script || { log_error "failed patching agent script"; return 1; }
     
     # take serviceIpRange from data file, and compose a x.y.z.10 address of it
-    cluster_dns=$(cat ../data.json  | jq -r '.serviceIpRange' | sed -e 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1.10/')
+    cluster_dns=$(cat $ROOT_DATA_FILE  | jq -r '.serviceIpRange' | sed -e 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1.10/')
     sed "s/{{CLUSTER_DNS}}/$cluster_dns/" kubelet-config.yaml.template > "$WORKERS_DEPLOYMENT/kubelet-config.yaml"
 
 }

@@ -2,7 +2,7 @@
 
 __configure_sourced__=1
 
-[ -f "./kthw_key" ] || { echo "Create a kthw_key file with the private key to access all machines"; exit 1 ; }
+[ -f "./kthw_key" ] || { echo "Create a kthw_key file with the private key to access all machines"; return 1 ; }
 chmod 600 ./kthw_key
 
 ## Install kubectl
