@@ -13,7 +13,7 @@ set_log_level DEBUG
 setup_coredns() {
     local template=coredns.yaml.template
     local cluster_ip=$(cat $ROOT_DATA_FILE | jq -r '.serviceIpRange' | sed -e 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1.10/')
-    local version=$(jq '.versions.coredns' $ROOT_DATA_FILE)
+    local version=$(jq '.versions.coredns' -r $ROOT_DATA_FILE)
     sed "s@{{CLUSTER_IP}}@$cluster_ip@" $template | \
        sed "s@{{VERSION}}@$version@" > coredns.yaml
 
@@ -26,5 +26,14 @@ setup_weavenet() {
     kubectl apply -f $weavenet_url
 }
 
-#setup_weavenet
-setup_coredns
+usage() {
+    echo "Usage: ./networking.sh <weavenet/coredns>"
+}
+
+cmd=$1
+case $cmd in
+    weavenet) setup_weavenet;;
+    coredns) setup_coredns;;
+    *) usage; exit 1;;
+esac
+
