@@ -51,7 +51,7 @@ $(KUBECONFIGS_OUTPUT)/kube-scheduler.kubeconfig: $(CERTIFICATES_OUTPUT)/kube-sch
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:kube-scheduler" "127.0.0.1" \
 		$@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/%.kubeconfig,$(CERTIFICATES_OUTPUT)/%.key,$@)
 
-$(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig: $(CERTIFICATES_OUTPUT)/%/kubelet.crt
+$(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig: $(CERTIFICATES_OUTPUT)/%/kubelet.crt $(ROOT_DATA_FILE)
 	@$(call echo_title, "generating $@")
 	@source $(UTILS_SCRIPT) && gen_kubeconfig $(CLUSTER_NAME) "system:node:$(patsubst $(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig,%,$@)" \
         $(APISERVER_IP) $@ $(CERTIFICATES_OUTPUT)/ca.crt $<  $(patsubst $(KUBECONFIGS_OUTPUT)/kubelet-%.kubeconfig,$(CERTIFICATES_OUTPUT)/%/kubelet.key,$@)
