@@ -33,7 +33,13 @@ test_networking() {
 }
 
 usage() {
-    echo "Usage: ./networking.sh <weavenet/coredns>"
+    echo "Usage: ./networking.sh <command>"
+    echo "Commands:"
+    echo ""
+    echo "weavenet        - Install weavenet network plugin in the cluster"
+    echo "coredns         - Install CoreDNS in the cluster"
+    echo "test_networking - Test to see if the nodes are in Ready state"
+    echo "TODO test_dns        - Test if DNS is working properly"
 }
 
 cmd=$1
