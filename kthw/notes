@@ -3,30 +3,29 @@
 To do:
 -----
 * Consider: How to make sure that when running control-plane, etcd is already up?
-* consider adding a test function to agents
 * loglevel in manager scripts should be coordinated
-* certificates: error checking and logging
 * add "dirty" field to status: split the creating directory step from installing service step 
   in all stages
-* Adding tests to workers - kubectl get nodes - count
 * Adding tests to networking
 * smoke tests
 * kthwctl 
 * status when nodes are empty (agent script is not there)
 
+consider
+-------
+When some node fails, in the manager scripts, we stop execution
+maybe we need to make the _execute_on_nodes function configurable
+to allow continuing processing on error
+
 Nice to have:
 -----------
 * before scp to nodes, check if already exist
 * jsonschema
+* implementing CNI plugin
 
 limitations:
 -------------
-* in control plane, there's a problem is checking if service is intalled
-or service is up, since we're talking about 3 services. So there are some edge
-cases which are not taken care of
-
 * leaving nodes with jq installed
-* after running pods, you can't remove /var/lib/kubelet directory: resource busy
 
 Edge cases:
 ----------
@@ -51,3 +50,8 @@ intereseting
 ---------
 * changing the CN and O in the apiserver-kubelet-client
   didn't seem to change anything. is this certificate useful?
+
+
+Safe functions
+--------------
+

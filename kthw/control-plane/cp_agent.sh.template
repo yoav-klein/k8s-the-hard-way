@@ -63,12 +63,13 @@ __rm_if_exist() {
     return 0
 }
 
-_delete_configurations() {
+_delete_app_directories() {
     local sc=0
     __rmdir_if_exist /etc/kubernetes || sc=1
     __rmdir_if_exist /var/lib/kubernetes || sc=1
+
+    [ $sc=0 ] && log_debug "app directories removed"
     return $sc
-    
 }
 
 _delete_service_files() {
@@ -80,22 +81,19 @@ _delete_service_files() {
     return $sc
 }
 
-_create_directories() {
+_create_app_directories() {
     mkdir -p /etc/kubernetes/config || { log_error "failed to create /etc/kubernetes/config"; return 1; }
-    mkdir -p /var/lib/kubernetes || { rm -rf /etc/kubernetes/config; log_error "failed to create \
-        /var/lib/kubernetes"; return 1; }
+    mkdir -p /var/lib/kubernetes || { log_error "failed to create /var/lib/kubernetes"; return 1; }
 
     log_debug "created directories for services"
 }
 
 # again, using set -e is not a good practice, but we're doing it with caution
-_install_configurations() {
-    _create_directories || return 1
+_install_app_files() {
     # run a subshell so that we can use -e without exiting the script
     # if one copy fails, delete all
     (
     set -e
-    trap _delete_configurations ERR
     cp ${cp_home}/ca.crt /var/lib/kubernetes
     cp ${cp_home}/ca.key /var/lib/kubernetes
     cp ${cp_home}/kube-apiserver.crt /var/lib/kubernetes
@@ -124,12 +122,8 @@ _enable_services() {
     systemctl daemon-reload || { log_error "failed to daemon-reload"; return 1; }
     
     # if one of  them fails to enable, remove the services and reload daemon
-    if ! systemctl enable kube-apiserver kube-scheduler kube-controller-manager; then
-        rm /etc/systemd/system/kube-* > /dev/null 2>&1
-        systemctl daemon-reload
-        log_error "failed to enable services"
-        return 1
-    fi
+    systemctl enable kube-apiserver kube-scheduler kube-controller-manager || { \
+        log_error "failed to enable services"; return 1; }
     
     log_debug "enabled control plane services"
 
@@ -208,21 +202,23 @@ install_services() {
     fi 
     
     echo_title "installing services"
-
-    _install_configurations 
-    if [ $? != 0 ]; then  log_error "failed installing certificates and kubeonfigs"; return 1; fi 
-    _install_service_files || { _delete_configurations; log_error "failed intsalling service files"; return 1; }
-    _enable_services || { _delete_configurations; _delete_service_files; log_error "failed to enable services"; return 1; }
+    
+    _create_app_directories || { _delete_app_directories; log_error "failed to install services"; return 1; }  
+    _install_app_files
+    if [ $? != 0 ]; then 
+        _delete_app_directories
+        log_error "failed to install services" 
+        return 1
+    fi
+    _install_service_files || { uninstall_services; log_error "failed intsalling services"; return 1; }
+    _enable_services || { uninstall_services; log_error "failed to enable services"; return 1; }
 
     log_info "installed services"
 
 }
 
+## as in etcd, this function is safe (idempotent)
 uninstall_services() {
-    if [ "$(_check_services_loaded)" = "false" ]; then
-         log_warning "services already uninstalled"
-         return 2
-    fi
     if [ "$(_check_services_active)" = "true" ]; then
          log_warning "services are active, stop them first";
          return 3
@@ -230,12 +226,11 @@ uninstall_services() {
     
     echo_title "uninstalling services"
 
-    # we don't need to disable the services, just delete and they'll automatically be disabled
     local sc=0
     { _delete_service_files && systemctl daemon-reload; } || { log_error "failed to remove services"; sc=1; }
-    _delete_configurations || { log_error "failed to delete configuarions"; sc=1; }
+    _delete_app_directories || { log_error "failed to delete app directories"; sc=1; }
     
-    log_info "uninstalled services"
+    [ $sc=0 ] && log_info "control plane services uninstalled"
     return $sc
 }
 
@@ -260,7 +255,7 @@ start_services() {
     systemctl start kube-apiserver kube-scheduler kube-controller-manager || { log_error "failed to start services"; return 1;  }
     
     if systemctl is-active kube-apiserver && systemctl is-active kube-controller-manager && \
-       systemctl is-active kube-schedueler; then
+       systemctl is-active kube-scheduler; then
         log_info "started control plane services"
     else
         log_error "at least one service is down"

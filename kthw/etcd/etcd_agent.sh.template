@@ -65,30 +65,37 @@ __rm_if_exist() {
 }
 
 
-_create_directories() {
+_create_app_directories() {
     mkdir -p /etc/etcd /var/lib/etcd || { log_error "failed to create directories"; return 1; }
     log_debug "directories created"
 }
 
-_delete_directories() {
-    __rmdir_if_exist "/etc/etcd"
-    __rmdir_if_exist "/var/lib/etcd"
+_delete_app_directories() {
+    local sc=0
+    __rmdir_if_exist "/etc/etcd" || sc=1
+    __rmdir_if_exist "/var/lib/etcd" || sc=1
     
-    log_debug "directories removed"
+    [ $sc=0 ] && log_debug "directories removed"
+    return $sc
 }
 
-_copy_certificates() {
+_copy_app_files() {
     cp $etcd_home/ca-etcd.crt /etc/etcd || { log_error "failed to copy certificates"; return 1; }
     cp $etcd_home/etcd-server.crt /etc/etcd || { log_error "failed to copy certificates"; rm /etc/etcd/*; return 1; }
     cp $etcd_home/etcd-server.key /etc/etcd || { log_error "failed to copy certificates"; rm /etc/etcd/*; return 1; }
 }
 
-_copy_unit_file() {
+_copy_service_file() {
     cp $etcd_home/etcd.service /etc/systemd/system  || { log_error "failed to copy service file"; return 1; }
 }
 
-_delete_unit_file() {
+_delete_service_file() {
     __rm_if_exist /etc/systemd/system/etcd.service 
+}
+
+_enable_service() {
+    systemctl daemon-reload || { log_error "failed to deamon-reload"; return 1; }
+    systemctl enable etcd || { log_error "failed to enable etcd"; return 1; }
 }
 
 _test_installation() {
@@ -157,8 +164,8 @@ uninstall_etcd_binaries() {
 #
 #   install etcd service
 #
-#   this function does a great deal of things:
-#   - create required directories
+#   this function does the followings:
+#   - create required directories for etcd
 #   - copy certificates to correct locations
 #   - copy service file to correct location
 #   - load and enable the service
@@ -178,19 +185,11 @@ install_service() {
 
     echo_title "installing service"
 
-    _create_directories || { log_error "failed to install service"; return 1; } 
-    _copy_certificates || { _delete_directories; log_error "failed to install service"; return 1; } 
-    _copy_unit_file || { delete_directories; log_error "failed to install service"; return 1; }
-    
-    systemctl daemon-reload || { _delete_unit_file; _delete_directories; log_error "failed to daemon-reload"; exit 1; }
-    if ! systemctl enable etcd; then
-        _delete_unit_file 
-        _delete_directories
-        systemctl daemon-reload
-        log_error "failed to enable service"
-        return 1
-    fi
-
+    _create_app_directories || { _delete_app_directories; log_error "failed to install service"; return 1; } 
+    _copy_app_files || { _delete_app_directories; log_error "failed to install service"; return 1; } 
+    _copy_service_file || { uninstall_service; log_error "failed to install service"; return 1; }
+    _enable_service || { uninstall_service; log_error "failed to enable service"; return 1; }  
+   
     log_info "etcd service is loaded and enabled"
 }
 
@@ -200,31 +199,26 @@ install_service() {
 #
 #   the undo of the install service function
 #   will do the followings:
-#   - disable the service
 #   - remove directories
 #   - remove unit file
 #   - reload services
 #
-#   runs only if service is not active and is loaded
+#   This function is safe (idempotent)
 #
 uninstall_service() {
     if [ $(_check_service_active) = "true" ]; then
         log_warning "service is active, stop service first"
         return 3
     fi
-    if [ $(_check_service_loaded) = "false" ]; then
-        log_warning "service already uninstalled"
-        return 2
-    fi
-
-    echo_title "uninstalling service"
-    systemctl disable etcd || { log_error "failed to disable service etcd"; return 1; }
-    _delete_unit_file || { log_error "failed to remove service file"; return 1; }
     
-    systemctl daemon-reload || log_error "systemctl deamon-reload failed"
-    _delete_directories || log_warning "failed to delete directories"
-
-    log_info "etcd service is unloaded, directories removed"
+    local sc=0
+    echo_title "uninstalling service"
+    { _delete_service_file && systemctl daemon-reload; } || { log_error "failed to remove service file"; sc=1; }
+    
+    _delete_app_directories || { log_error "failed to delete directories"; sc=1; }
+    
+    [ $sc=0 ] && log_info "etcd service removed"
+    return $sc
 }
 
 
@@ -244,11 +238,7 @@ start_service() {
         log_warning "service is not loaded, load service first"
         return 3
     fi
-    if [ $(_check_binaries_installed) = "false" ]; then
-        log_warning "etcd binaries uninstalled, install first"
-        return 3
-    fi
-
+    
     echo_title "starting service"
     systemctl start etcd || { log_error "failed to start etcd service"; return 1; }
 

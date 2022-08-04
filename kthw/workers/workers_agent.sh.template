@@ -136,15 +136,8 @@ _install_containerd() {
     systemctl is-active containerd > /dev/null 2>&1 ||  { log_error "failed to start containerd service"; _uninstall_containerd; }
 }
 
-_create_installation_directories() {
-    sudo mkdir -p /var/lib/kubelet \
-        /var/lib/kube-proxy \
-        /var/lib/kubernetes \
-        /var/run/kubernetes \
-        /etc/cni/net.d
-}
 
-_copy_files_to_locations() {
+_install_app_files() {
     cp ${workers_home}/kubelet.crt /var/lib/kubelet || return 1
     cp ${workers_home}/kubelet.key /var/lib/kubelet || return 1
     cp ${workers_home}/kubelet.kubeconfig /var/lib/kubelet || return 1
@@ -155,35 +148,46 @@ _copy_files_to_locations() {
 
 }
 
-_install_kube_service_files() {
+_install_service_files() {
     cp ${workers_home}/kubelet.service /etc/systemd/system || return 1
     cp ${workers_home}/kube-proxy.service /etc/systemd/system || return 1
 }
 
-_delete_kube_service_files() {
-    __rm_if_exist "/etc/systemd/system/kubelet.service"
-    __rm_if_exist "/etc/systemd/system/kube-proxy.service"
+_delete_service_files() {
+    local sc=0
+    __rm_if_exist "/etc/systemd/system/kubelet.service" || sc=1
+    __rm_if_exist "/etc/systemd/system/kube-proxy.service" || sc=1
+
+    return $sc
 }
 
-_create_kube_dirs() {
+_create_app_directories() {
     mkdir -p /var/lib/kubelet || return 1
     mkdir -p /var/lib/kubernetes || return 1
     mkdir -p /var/lib/kube-proxy  || return 1
     mkdir -p /var/run/kubernetes || return 1
 }
 
-_delete_kube_dirs() {
-    __rmdir_if_exist "/var/lib/kubelet"
-    __rmdir_if_exist "/var/lib/kubernetes"
-    __rmdir_if_exist "/var/lib/kube-proxy"
-    __rmdir_if_exist "/var/run/kubernetes"
+_delete_app_directories() {
+    local sc=0
+    __rmdir_if_exist "/var/lib/kubelet" || sc=1
+    __rmdir_if_exist "/var/lib/kubernetes" || sc=1
+    __rmdir_if_exist "/var/lib/kube-proxy" || sc=1
+    __rmdir_if_exist "/var/run/kubernetes" || sc=1
+
+    [ $?=0 ] && log_debug "app directories removed"
+    return $sc
 }
 
 _enable_services() {
-    systemctl daemon-reload
-    systemctl enable kubelet || return 1
-    systemctl enable kube-proxy || return 1
+    systemctl daemon-reload || { log_error "failed to daemon-reload"; return 1; }
+    
+    # if one of  them fails to enable, remove the services and reload daemon
+    systemctl enable kubelet kube-proxy ||  { log_error "failed to enable services"; return 1; }
+    
+    log_debug "enabled kubelet services"
 }
+
 
 ########################## commands functions #################################
 
@@ -293,35 +297,29 @@ install_services() {
 
     echo_title "installing services"
      
-    _create_kube_dirs || { log_error "failed to create directories for kubelet and kube-proxy"; _delete_kube_dirs; return 1; }
-    _copy_files_to_locations || { log_error "failed to copy kubelet and kube-proxy files to locations"; \
- _delete_kube_dirs; return 1; } 
-    _install_kube_service_files || { log_error "failed to install service files"; _delete_kube_dirs; \
- _delete_kube_service_files; return 1; }
-    
-    _enable_services || { log_error "failed enabling kubelet and/or kube-proxy"; return 1; }
+    _create_app_directories || { _delete_app_directories; log_error "failed to install services"; return 1; }
+    _install_app_files || { _delete_app_directories; log_error "failed to install services"; return 1; }
+    _install_service_files || { uninstall_services; log_error "failed to install services"; return 1;  } 
+    _enable_services || { uninstall_services; log_error "failed enabling kubelet and/or kube-proxy"; return 1; }
 
     log_info "installed services"
 }
 
-uninstall_services() { 
-    if [ "$(_check_services_loaded)" = "false" ]; then
-        log_warning "services already unloaded"
-        return 2
-    fi
+## as in etcd, this function is safe (idempotent)
+uninstall_services() {
     if [ "$(_check_services_active)" = "true" ]; then
-        log_warning "services are active, stop them first"
-        return 3
+         log_warning "services are active, stop them first";
+         return 3
     fi
-        
+    
     echo_title "uninstalling services"
 
-    _delete_kube_dirs
-    _delete_kube_service_files
-
-    systemctl daemon-reload || { log_error "failed to reload daemon"; return 1; }
+    local sc=0
+    { _delete_service_files && systemctl daemon-reload; } || { log_error "failed to remove services"; sc=1; }
+    _delete_app_directories || { log_error "failed to delete app directories"; sc=1; }
     
-    log_info "uninstalled_services"
+    [ $sc=0 ] && log_info "control plane services uninstalled"
+    return $sc
 }
 
 start_services() {
