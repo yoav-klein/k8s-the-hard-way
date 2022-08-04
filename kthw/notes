@@ -6,16 +6,16 @@ To do:
 * loglevel in manager scripts should be coordinated
 * add "dirty" field to status: split the creating directory step from installing service step 
   in all stages
-* Adding tests to networking
 * smoke tests
 * kthwctl 
 * status when nodes are empty (agent script is not there)
 
 consider
 -------
-When some node fails, in the manager scripts, we stop execution
-maybe we need to make the _execute_on_nodes function configurable
-to allow continuing processing on error
+* When some node fails, in the manager scripts, we stop execution
+  maybe we need to make the _execute_on_nodes function configurable
+  to allow continuing processing on error
+* test_networking is pretty lame, see if you can improve it
 
 Nice to have:
 -----------
