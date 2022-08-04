@@ -26,6 +26,12 @@ setup_weavenet() {
     kubectl apply -f $weavenet_url
 }
 
+test_networking() { 
+    res=$(kubectl get nodes -ojson | jq -r '.items[].status.conditions[] | select (.type=="Ready") | select(.status=="False")')
+    if [ -n "$res" ]; then return 1; fi
+    return 0
+}
+
 usage() {
     echo "Usage: ./networking.sh <weavenet/coredns>"
 }
@@ -34,6 +40,7 @@ cmd=$1
 case $cmd in
     weavenet) setup_weavenet;;
     coredns) setup_coredns;;
+    test_networking) test_networking;;
     *) usage; exit 1;;
 esac
 
