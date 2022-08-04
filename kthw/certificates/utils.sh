@@ -16,30 +16,48 @@
 #
 #######################################
 
+source ../.env
+source ../lib
+source $LOG_LIB
+
+config_json=$ROOT_DATA_FILE # defined in the Makefile
+ssl_commons=ssl/ssl_commons.sh
+
+source $ssl_commons
+
+
+###############################
+#
+#   generate a certificate
+#
+#   takes a set of parameters and generates a 
+#   private key and a certificate based on a configuration file
+#
+#   notes:
+#   - the "name" parameter will be appended with .crt and .key
+#     so if you want a certificate "server.crt" - pass "server"
+#  
 
 gen_certificate_generic() {
     name=$1
     ca_cert=$2
     ca_key=$3
-    conf=$4
+    conf_file_path=$4
     extensions=$5
     if [ -z "$name" ] || [ -z "$ca_cert" ] || [ -z "$ca_key" ]; then
-        log_error "gen_certificate_regular: Usage: gen_certificate_regular <name> <ca_cert> <ca_key> [conf_file_path]"
+        echo "gen_certificate_regular: Usage: gen_certificate_regular <name> <ca_cert> <ca_key> [conf_file_path]"
         exit 1
     fi
-
-    if [ -n "$conf" ]; then
-        conf_file_path=$4
-    else
-        conf_file_path="$conf_files_base/$name.conf"
-    fi
-    gen_private_key "$name.key" 
-    gen_sign_request "$name.key" "$name.csr" "$conf_file_path" || return 1
+    
+    gen_private_key "$name.key" > /dev/null 2>&1 || { log_error "failed generating key $name.key"; return 1; } 
+    gen_sign_request "$name.key" "$name.csr" "$conf_file_path" || { log_error "failed generating csr $name.csr"return 1; }
     
     if [ -n "$extensions" ]; then 
-        sign_request "$name.csr" $ca_cert $ca_key "$name.crt" $conf_file_path $extensions
+        sign_request "$name.csr" $ca_cert $ca_key "$name.crt" $conf_file_path $extensions || \
+            { log_error "failed signing certificate $name.csr"; return 1; }
     else 
-        sign_request "$name.csr" $ca_cert $ca_key "$name.crt"
+        sign_request "$name.csr" $ca_cert $ca_key "$name.crt" || \
+            { log_error "failed signing certificate $name.csr"; return 1; }
     fi
     
     rm "$name.csr"
@@ -112,9 +130,3 @@ patch_etcd_config_file() {
     sed "s/<ip>/$ip/;s/<hostname>/$hostname/" $template > $destination
 }
 
-conf_files_base=config_certs # not really necessary here
-config_json=$ROOT_CONFIG_FILE # defined in the Makefile
-ssl_commons=ssl/ssl_commons.sh
-
-source $ssl_commons
-source ../lib

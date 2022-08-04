@@ -12,11 +12,12 @@ To do:
 * Adding tests to networking
 * smoke tests
 * kthwctl 
+* status when nodes are empty (agent script is not there)
 
 Nice to have:
 -----------
 * before scp to nodes, check if already exist
-
+* jsonschema
 
 limitations:
 -------------
@@ -26,6 +27,11 @@ cases which are not taken care of
 
 * leaving nodes with jq installed
 * after running pods, you can't remove /var/lib/kubelet directory: resource busy
+
+Edge cases:
+----------
+- After running something in the cluster, trying to kubelet reset
+  fails
 
 
 to learn
@@ -39,3 +45,9 @@ bash
 kubernetes
 * encryption config
 * cluster networking
+* authorization modes
+
+intereseting
+---------
+* changing the CN and O in the apiserver-kubelet-client
+  didn't seem to change anything. is this certificate useful?

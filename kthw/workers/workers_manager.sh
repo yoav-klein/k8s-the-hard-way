@@ -235,13 +235,15 @@ status() {
 }
 
 test_workers() {
-    timeout 10 kubectl --kubeconfig $KUBECONFIGS_OUTPUT/admin.kubeconfig get cs > /dev/null 2>&1
-    if [ $? != 0 ]; then
+    num_workers=$(timeout 10 kubectl get nodes -ojson | jq  '.items | length')
+    num_expected=$(jq '.workers | length' $ROOT_DATA_FILE)
+    
+    if (( $num_workers != $num_expected )); then
         echo -e  "${COLOR_RED}!!! CONTROL PLANE TEST FAILED !!!${RESET}"
         return 1;
     fi
     
-    big_success "CONTROL PLANE IS UP AND RUNNING"
+    big_success "ALL WORKERS ARE UP AND RUNNING"
 }
 
 bootstrap() {
@@ -365,6 +367,6 @@ case $cmd in
     bootstrap) bootstrap;;
     reset) reset;;
     clean_nodes) clean_nodes;;
-    test) test_cp;;
+    test) test_workers;;
     *) usage;;
 esac

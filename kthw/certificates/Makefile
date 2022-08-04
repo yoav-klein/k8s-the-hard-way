@@ -16,17 +16,17 @@ SHELL=/bin/bash
 UTILS_SCRIPT       =utils.sh
 CONFIG_FILES_BASE  =cert-configs
 SSL_COMMON         =ssl/ssl_commons.sh
-TMP                =tmp
-include ../.env
+TMP=tmp
+include ../.env # includes all the paths in the project
 
 ## Values
-NODES          =$(shell jq -r '.workers[].name' $(ROOT_DATA_FILE))
-CONTROLLERS    =$(shell jq -r '.controllers[].name' $(ROOT_DATA_FILE))
+WORKERS     =$(shell jq -r '.workers[].name' $(ROOT_DATA_FILE))
+CONTROLLERS =$(shell jq -r '.controllers[].name' $(ROOT_DATA_FILE))
 
 ## Targets
-KUBELET_CERTS =$(patsubst %,%/kubelet.crt,$(NODES))
+KUBELET_CERTS =$(patsubst %,%/kubelet.crt,$(WORKERS))
 ETCD_SERVER_CERTS =$(patsubst %,etcd-server-%.crt,$(CONTROLLERS))
-CERTIFICATES  =ca.crt admin.crt kubelets kube-controller-manager.crt kube-proxy.crt \
+CERTIFICATES  =ca.crt admin.crt  kube-controller-manager.crt kube-proxy.crt \
   kube-scheduler.crt service-accounts.crt kube-apiserver.crt apiserver-etcd-client.crt \
   apiserver-kubelet-client.crt $(KUBELET_CERTS)  $(ETCD_SERVER_CERTS)
 CERT_TARGETS  =$(patsubst %,$(CERTIFICATES_OUTPUT)/%,$(CERTIFICATES))
@@ -40,7 +40,8 @@ define echo_title
 endef
 
 all: $(CERT_TARGETS)
-	source $(KTHW_HOME)/lib && big_success "GENEARTED CERTIFICATES"
+	@source $(KTHW_HOME)/lib && big_success "GENEARTED CERTIFICATES"
+	@rm -rf $(TMP)
 
 $(CERT_TARGETS): | $(CERTIFICATES_OUTPUT)
 
@@ -54,6 +55,7 @@ ssl:
 $(CERTIFICATES_OUTPUT)/ca.crt: ssl
 	@$(call echo_title, "generating $@")
 	@source $(SSL_COMMON) && gen_ca_cert $(basename $@) $(CONFIG_FILES_BASE)/ca.conf
+
 
 $(CERTIFICATES_OUTPUT)/admin.crt: $(CERTIFICATES_OUTPUT)/ca.crt $(CONFIG_FILES_BASE)/admin.conf
 	@$(call echo_title, "generating $@")
