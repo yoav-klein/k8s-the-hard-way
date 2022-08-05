@@ -254,8 +254,7 @@ start_services() {
     # if one fails to start, the others are started, but the exit code is non-zero
     systemctl start kube-apiserver kube-scheduler kube-controller-manager || { log_error "failed to start services"; return 1;  }
     
-    if systemctl is-active kube-apiserver && systemctl is-active kube-controller-manager && \
-       systemctl is-active kube-scheduler; then
+    if [ $(_check_services_active) = "true" ]; then 
         log_info "started control plane services"
     else
         log_error "at least one service is down"
