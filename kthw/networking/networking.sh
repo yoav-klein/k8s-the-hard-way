@@ -32,6 +32,14 @@ test_networking() {
     return 0
 }
 
+test_dns() {
+    # create a pod with nslookup
+    # try to execute nslookup kubernetes
+    kubectl apply -f test-pod.yaml
+    
+    kubectl exec -it pods/test-dns -- timeout 10 nslookup kubernetes
+}
+
 usage() {
     echo "Usage: ./networking.sh <command>"
     echo "Commands:"
@@ -47,6 +55,7 @@ case $cmd in
     weavenet) setup_weavenet;;
     coredns) setup_coredns;;
     test_networking) test_networking;;
+    test_dns) test_dns;;
     *) usage; exit 1;;
 esac
 
