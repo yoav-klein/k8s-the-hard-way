@@ -139,7 +139,7 @@ _distribute_node() (
 
 #################### commands functions ##########################
 
-create_deployment() {
+build() {
         if [ ! -d "$ETCD_DEPLOYMENT" ]; then mkdir "$ETCD_DEPLOYMENT"; else rm $ETCD_DEPLOYMENT/*; fi
         _generate_service_files || return 1
         _patch_agent_script || return 1
@@ -261,7 +261,7 @@ status() {
 #
 
 bootstrap() {
-    create_deployment || { log_error "failed creating deployment"; return 1; }
+    build || { log_error "failed creating deployment"; return 1; }
     
     log_debug "distributing etcd files"
     distribute
@@ -334,7 +334,7 @@ usage() {
     echo "etcd_manager <command>"
     echo ""
     echo "Commands:"
-    echo "create_deployment    - Generate necessary files to run etcd on nodes"
+    echo "build    - Generate necessary files to run etcd on nodes"
     echo "distribute           - Distribute the files to the nodes"
     echo "clean_nodes          - Clean etcd_home, may run only if etcd is uninstalled"
     echo "install_binaries     - Install etcd binaries on nodes"
@@ -352,7 +352,7 @@ usage() {
 
 
 case $cmd in
-    create_deployment) create_deployment ;;
+    build) build ;;
     distribute) distribute ;;
     clean_nodes) clean_nodes ;;
     install_binaries) install_binaries ;;

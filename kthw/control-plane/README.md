@@ -31,7 +31,7 @@ $ cp_manager.sh reset
 
 Or the long ways:
 ```
-$ cp_manager.sh create_deployment
+$ cp_manager.sh build
 $ cp_manager.sh distribute
 $ cp_manager.sh install_binaries
 $ cp_manager.sh install_services

@@ -124,7 +124,7 @@ _execute_on_nodes() {
 ##################### command functions #####################
 
 
-create_deployment() {
+build() {
     echo_title "creating deployment"
     if [ ! -d "$WORKERS_DEPLOYMENT" ]; then mkdir "$WORKERS_DEPLOYMENT"; else rm $WORKERS_DEPLOYMENT/*; fi
 
@@ -247,7 +247,7 @@ test_workers() {
 }
 
 bootstrap() {
-    create_deployment || { log_error "failed creating deployment"; return 1; }
+    build || { log_error "failed creating deployment"; return 1; }
     
     log_debug "distributing worker files"
     distribute
@@ -332,9 +332,9 @@ reset() {
 
 usage() {
     echo "Usage:"
-    echo "cp_manager [create_deployment, distribute, run_on_nodes, clean_nodes, clean]"
+    echo "cp_manager [build, distribute, run_on_nodes, clean_nodes, clean]"
     echo "Commands:"
-    echo "create_deployment       - Generate necessary files to run control plane on nodes"
+    echo "build       - Generate necessary files to run control plane on nodes"
     echo "distribute              - Distribute the files to the nodes"
     echo "install_prerequisites   - Install containerd and rest of prerequisites"
     echo "uninstall_prerequisites - Uninstall containerd and prerequisites"
@@ -353,7 +353,7 @@ usage() {
 cmd=$1
 
 case $cmd in
-    create_deployment) create_deployment;;
+    build) build;;
     distribute) distribute;;
     install_prerequisites) install_prerequisites;;
     uninstall_prerequisites) uninstall_prerequisites;;

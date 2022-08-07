@@ -38,7 +38,7 @@ Other than that, it's the same `workers_manager.sh` script with the commands we
 have in etcd and control plane:
 
 ```
-$ workers_manager.sh create_deployment
+$ workers_manager.sh build
 $ workers_manager.sh distribute
 $ workers_manager.sh install_prerequisites
 $ workers_manager.sh install_binaries

@@ -160,7 +160,7 @@ _distribute_node() (
 
 ################################ commands functions ####################
 
-create_deployment() {
+build() {
     if [ ! -d "$CP_DEPLOYMENT" ]; then mkdir "$CP_DEPLOYMENT"; else rm $CP_DEPLOYMENT/*; fi
     _generate_apiserver_service_files || { log_error "failed to generate apiserver service files"; return 1;  } 
     _generate_controller_manager_service_files || { log_error "failed to generate controller-manager service files"; return 1; }
@@ -268,7 +268,7 @@ test_cp() {
 }
 
 bootstrap() {
-    create_deployment || { log_error "failed creating deployment"; return 1; }
+    build || { log_error "failed creating deployment"; return 1; }
     
     log_debug "distributing control plane files"
     distribute
@@ -338,9 +338,9 @@ reset() {
 
 usage() {
     echo "Usage:"
-    echo "cp_manager [create_deployment, distribute, run_on_nodes, clean_nodes, clean]"
+    echo "cp_manager [build, distribute, run_on_nodes, clean_nodes, clean]"
     echo "Commands:"
-    echo "create_deployment - Generate necessary files to run control plane on nodes"
+    echo "build - Generate necessary files to run control plane on nodes"
     echo "distribute        - Distribute the files to the nodes"
     echo "install_binaries  - Install control plane binaries on all nodes"
     echo "uninstall_binaries- Uninstall control plane binaries on all nodes"
@@ -357,7 +357,7 @@ usage() {
 cmd=$1
 
 case $cmd in
-    create_deployment) create_deployment;;
+    build) build;;
     distribute) distribute;;
     install_binaries) install_binaries;;
     uninstall_binaries) uninstall_binaries;;

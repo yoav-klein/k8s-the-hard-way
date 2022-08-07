@@ -41,7 +41,7 @@ $ etcd_manager.sh status
 ### Up
 So, taking the long way, we'll do:
 ```
-$ etcd_manager.sh create_deployment
+$ etcd_manager.sh build
 $ etcd_manager.sh distribute
 $ etcd_manager.sh install_binaries
 $ etcd_manager.sh install_service
