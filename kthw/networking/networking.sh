@@ -37,6 +37,12 @@ test_dns() {
     # try to execute nslookup kubernetes
     kubectl apply -f test-pod.yaml
     
+    local ready=false
+    while [ $ready != "true" ]; do
+        ready=$(kubectl get pod test-dns -ojson | jq '.status.containerStatuses[0].ready')
+        echo $ready
+    done
+
     kubectl exec -it pods/test-dns -- timeout 10 nslookup kubernetes
 }
 
