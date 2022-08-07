@@ -10,6 +10,12 @@ To do:
 * kthwctl 
 * status when nodes are empty (agent script is not there)
 
+smoke tests
+------------
+- create a deployment
+- create a service
+
+
 consider
 -------
 * When some node fails, in the manager scripts, we stop execution
