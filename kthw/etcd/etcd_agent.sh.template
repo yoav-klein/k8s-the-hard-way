@@ -242,7 +242,7 @@ start_service() {
     echo_title "starting service"
     systemctl start etcd || { log_error "failed to start etcd service"; return 1; }
 
-    if systemctl is-active etcd; then
+    if systemctl is-active etcd > /dev/null 2>&1; then
         log_info "etcd service is up"
     else
         log_error "etcd service is not running !"
