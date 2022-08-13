@@ -360,11 +360,13 @@ status() {
     local is_landed=$(_check_landed)
     local is_active=$(_check_services_active)
     local is_prereq_installed=$(_check_prerequisites_installed)
+    local is_dirty=$(_check_dirty)
     echo '{}' | jq ".prerequisites_installed |= $is_prereq_installed \
         | .installed |= $is_installed
         | .loaded |= $is_loaded \
         | .active |= $is_active \
-        | .landed |= $is_landed"
+        | .landed |= $is_landed \
+        | .dirty |= $is_dirty"
 }
 
 
@@ -385,6 +387,12 @@ _check_services_loaded() {
 _check_services_active() {
     systemctl is-active kubelet > /dev/null 2>&1 && \
     systemctl is-active kube-proxy > /dev/null 2>&1 && echo "true" || echo "false"
+}
+
+_check_dirty() {
+    [ -d /var/lib/kubelet ] || [ -d /var/lib/kubernetes ] || \
+    [ -d /var/lib/kube-proxy ] || [ -d /var/run/kubernetes ] && { echo "true"; return; }
+    echo "false"
 }
 
 _check_landed() {    
