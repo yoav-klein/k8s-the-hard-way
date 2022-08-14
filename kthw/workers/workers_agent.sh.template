@@ -390,9 +390,10 @@ _check_services_active() {
 }
 
 _check_dirty() {
-    [ -d /var/lib/kubelet ] || [ -d /var/lib/kubernetes ] || \
-    [ -d /var/lib/kube-proxy ] || [ -d /var/run/kubernetes ] && { echo "true"; return; }
-    echo "false"
+    test -d /var/lib/kubelet || test -d /var/lib/kubernetes  \
+    test -d /var/lib/kube-proxy || test -d /var/run/kubernetes || \
+    test -f /etc/systemd/system/kubelet.service || test -f /etc/systemd/system/kube-proxy.service \
+    &&  echo "true" || echo "false"
 }
 
 _check_landed() {    

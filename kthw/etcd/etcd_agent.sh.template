@@ -290,12 +290,19 @@ _check_landed() {
     test -f $etcd_home/etcd.service && test -f $etcd_home/ca-etcd.crt && echo "true" || echo "false"
 }
 
+_check_dirty() {
+    test -d /etc/etcd || test -d /var/lib/etcd || test -f /etc/systemd/system/etcd.service \
+        && echo "true" || echo "false"
+}
+
 status() {
     local is_installed=$(_check_binaries_installed)
     local is_loaded=$(_check_service_loaded)
     local is_landed=$(_check_landed)
     local is_active=$(_check_service_active)
-    echo '{}' | jq ".installed |= $is_installed | .loaded |= $is_loaded | .active |= $is_active | .landed |= $is_landed"
+    local is_dirty=$(_check_dirty)
+    echo '{}' | jq ".installed |= $is_installed | .loaded |= $is_loaded | .active |= $is_active | .landed |= $is_landed \
+        | .dirty |= $is_dirty"
 }
 
 

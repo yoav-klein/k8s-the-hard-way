@@ -282,7 +282,9 @@ status() {
     local is_loaded=$(_check_services_loaded)
     local is_landed=$(_check_landed)
     local is_active=$(_check_services_active)
-    echo '{}' | jq ".installed |= $is_installed | .loaded |= $is_loaded | .active |= $is_active | .landed |= $is_landed"
+    local is_dirty=$(_check_dirty)
+    echo '{}' | jq ".installed |= $is_installed | .loaded |= $is_loaded | .active |= $is_active | .landed |= $is_landed \
+        | .dirty = $is_dirty"
 }
 
 
@@ -317,6 +319,13 @@ _check_binaries_installed() {
         test -f /usr/local/bin/kube-scheduler && echo "true" || echo "false"
      
 }
+
+_check_dirty() {
+    test -d /etc/kubernetes/config || test -d /var/lib/kubernetes || \
+    test -f /etc/systemd/system/kube-scheduler.service || test -f /etc/systemd/system/kube-apiserver.service \
+    || test -f /etc/systemd/system/kube-controller-manager.service && echo "true" || echo "false"
+}
+
 
 _check_landed() {    
     ### file_list - a global variable that holds the file list necessary for the control plane
