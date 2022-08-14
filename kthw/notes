@@ -4,11 +4,8 @@ To do:
 -----
 * Consider: How to make sure that when running control-plane, etcd is already up?
 * loglevel in manager scripts should be coordinated
-* add "dirty" field to status: split the creating directory step from installing service step 
-  in all stages
 * smoke tests
 * kthwctl 
-* status when nodes are empty (agent script is not there)
 
 smoke tests
 ------------
