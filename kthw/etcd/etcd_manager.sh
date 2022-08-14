@@ -140,11 +140,11 @@ _distribute_node() (
 #################### commands functions ##########################
 
 build() {
-        if [ ! -d "$ETCD_DEPLOYMENT" ]; then mkdir "$ETCD_DEPLOYMENT"; else rm $ETCD_DEPLOYMENT/*; fi
-        _generate_service_files || return 1
-        _patch_agent_script || return 1
+    if [ ! -d "$ETCD_DEPLOYMENT" ]; then mkdir "$ETCD_DEPLOYMENT"; else rm $ETCD_DEPLOYMENT/*; fi
+    _generate_service_files || return 1
+    _patch_agent_script || return 1
 
-        log_info "created deployment"
+    log_info "created deployment"
 }
 
 
@@ -240,12 +240,18 @@ test_etcd() {
 }
 
 status() {
-    
     for controller in ${controllers[@]}; do
-        name=$(echo $controller | jq -r '.name')
-        ip=$(echo $controller | jq -r '.ip')
-
+        local name=$(echo $controller | jq -r '.name')
+        local ip=$(echo $controller | jq -r '.ip')
         local node_status
+
+        # check if agent script exist
+        echo $agent_script
+
+        if ! ssh -i $SSH_PRIVATE_KEY $username@$ip [ -f $agent_script ]; then
+            echo "$name: agent script doesn't exist"
+            continue
+        fi
         node_status=$(ssh -i $SSH_PRIVATE_KEY $username@$ip sudo $agent_script status)
         if [ $? != 0 ]; then echo "status of $name is unkown, running status command failed"; continue; fi
         echo "$name"

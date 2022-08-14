@@ -242,10 +242,16 @@ stop_services() {
 
 status() {    
     for controller in ${controllers[@]}; do
-        name=$(echo $controller | jq -r '.name')
-        ip=$(echo $controller | jq -r '.ip')
-
+        local name=$(echo $controller | jq -r '.name')
+        local ip=$(echo $controller | jq -r '.ip')
         local node_status
+
+         # check if agent script exist
+        if ! ssh -i $SSH_PRIVATE_KEY $username@$ip [ -f $agent_script ]; then
+            echo "$name: agent script doesn't exist"
+            continue
+        fi
+
         node_status=$(ssh -i $SSH_PRIVATE_KEY $username@$ip sudo $agent_script status)
         if [ $? != 0 ]; then echo "status of $name is unknown, running status command failed"; continue; fi
         echo "$name"
