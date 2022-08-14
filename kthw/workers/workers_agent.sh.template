@@ -21,7 +21,7 @@ log() {
         echo "Usage: log <message>"
         return
     fi
-    echo "$log_level: cp_agent:${FUNCNAME[2]}:${BASH_LINENO[1]} $message"
+    echo "$log_level:workers_agent:${FUNCNAME[2]}:${BASH_LINENO[1]} $message"
 }
 
 log_warning() {
