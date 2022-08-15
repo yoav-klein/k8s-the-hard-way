@@ -12,7 +12,7 @@ set_log_level DEBUG
 
 ## global variables used by several functions
 service_ip_range=$(jq -r ".serviceIpRange" $ROOT_DATA_FILE)
-workers=($(jq -c ".workers[]" $ROOT_DATA_FILE))
+nodes=($(jq -c ".workers[]" $ROOT_DATA_FILE))
 workers_home="$WORKERS_HOME"
 username=$(jq -r ".machinesUsername" $ROOT_DATA_FILE)
 agent_script="$WORKERS_HOME/workers_agent.sh"
@@ -24,8 +24,8 @@ _generate_kubelet_service_files() {
     log_debug "generating kubelet service files"
     set -e
     local template=kubelet.service.template
-    for worker in ${workers[@]}; do
-        name=$(echo $worker | jq -r '.name') || return 1
+    for node in ${nodes[@]}; do
+        name=$(echo $node | jq -r '.name') || return 1
         sed "s/{{HOSTNAME}}/$name/" $template > "$WORKERS_DEPLOYMENT/$name.kubelet.service" || return 1
     done
 }
@@ -84,42 +84,6 @@ _distribute_node() (
     log_info "distributed files to $name"
 )
 
-## generic function to execute a function on all nodes
-# status codes of agent script:
-# 0 - success
-# 1 - failure
-# 2 - node is already ready
-# 3 - node is not ready for this action
-_execute_on_nodes() {
-    function=$1
-    
-    log_debug "executing $function on workers"
-    for worker in ${workers[@]}; do
-        ip=$(echo $worker | jq -r '.ip')
-        name=$(echo $worker | jq -r '.name')
-        
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip"  "sudo $agent_script $function"
-        sc=$?
-        log_debug "$name returned $sc"
-
-        if [ $sc = 1 ]; then
-            log_error "$function on $name failed !"
-            return 1
-        fi
-        if [ $sc = 2 ]; then
-            log_warning "$name is already after $function"
-            continue
-        fi
-        if [ $sc = 3 ]; then
-            log_error "$name is not ready for $function"
-            return 1
-        fi
-
-        log_info "successfully executed $function on $name"
-    done
-}
-
-
 
 ##################### command functions #####################
 
@@ -138,28 +102,11 @@ build() {
 
 }
 
-distribute() {
-    echo_title "distributing to nodes"
-    
-    local sc=0
-    for worker in ${workers[@]}; do
-        local ip=$(echo $worker | jq -r ".ip")
-        local name=$(echo $worker | jq -r ".name")
-        echo "here"
-        _distribute_node $ip $name
-        [ $? != 0 ] && sc=1
-    done
-    
-    [ $sc = 0 ] && print_success "distributed files to nodes"
-
-    return $sc
-}
-
 clean_nodes() {
     echo_title "cleaning nodes"
-    for worker in ${workers[@]}; do
-        name=$(echo $worker | jq -r '.name')
-        ip=$(echo $worker | jq -r '.ip')
+    for node in ${nodes[@]}; do
+        name=$(echo $node | jq -r '.name')
+        ip=$(echo $node | jq -r '.ip')
 
         local node_status
         node_status=$(ssh -i $SSH_PRIVATE_KEY $username@$ip sudo $agent_script status)
@@ -186,44 +133,44 @@ clean_nodes() {
 }
 
 install_prerequisites() {
-    _execute_on_nodes "install_prerequisites" || { log_error "install prerequisites failed"; return 1; } 
+    _execute_on_nodes "install_prerequisites" "stop" || { log_error "install prerequisites failed"; return 1; } 
 }
 
 uninstall_prerequisites() {
-    _execute_on_nodes "uninstall_prerequisites" || { log_error "uninstall prerequisites failed"; return 1; } 
+    _execute_on_nodes "uninstall_prerequisites" "cont" || { log_error "uninstall prerequisites failed"; return 1; } 
 }
 
 
 
 install_binaries() {
-    _execute_on_nodes "install_binaries" || { log_error "install binaries failed"; return 1; } 
+    _execute_on_nodes "install_binaries" "stop" || { log_error "install binaries failed"; return 1; } 
 }
 
 uninstall_binaries() {
-    _execute_on_nodes "uninstall_binaries" || { log_error "uninstall binaries failed"; return 1; } 
+    _execute_on_nodes "uninstall_binaries" "cont" || { log_error "uninstall binaries failed"; return 1; } 
 }
 
 install_services() {
-    _execute_on_nodes "install_services" || { log_error "install services failed"; return 1; } 
+    _execute_on_nodes "install_services" "stop" || { log_error "install services failed"; return 1; } 
 }
 
 uninstall_services() {
-    _execute_on_nodes "uninstall_services" || { log_error "uninstall services failed"; return 1; } 
+    _execute_on_nodes "uninstall_services" "cont" || { log_error "uninstall services failed"; return 1; } 
 }
 
 start_services() {
-    _execute_on_nodes "start" || { log_error "start services failed"; return 1; } 
+    _execute_on_nodes "start" "stop" || { log_error "start services failed"; return 1; } 
 }
 
 stop_services() {
-    _execute_on_nodes "stop" || { log_error "stop services failed"; return 1; } 
+    _execute_on_nodes "stop" "cont" || { log_error "stop services failed"; return 1; } 
 }
 
 
 status() {    
-    for worker in ${workers[@]}; do
-        local name=$(echo $worker | jq -r '.name')
-        local ip=$(echo $worker | jq -r '.ip')
+    for node in ${nodes[@]}; do
+        local name=$(echo $node | jq -r '.name')
+        local ip=$(echo $node | jq -r '.ip')
         local node_status
 
         # check if agent script exist
@@ -293,45 +240,26 @@ bootstrap() {
 }
 
 reset() {
-    log_debug "stopping services"
-    stop_services
-    if [ $? != 0 ]; then
-        log_error "failed to stop service"
-        return 1
-    fi
+    local sc=0
 
+    log_debug "stopping services"
+    stop_services || sc=1
+    
     log_debug "uninstalling services on all nodes"
-    uninstall_services
-    if [ $? != 0 ]; then
-        log_error "uninstall services failed"
-        return 1
-    fi
+    uninstall_services  || sc=1
 
     log_debug "uninstalling binaries on all nodes"
-    uninstall_binaries
-    if [ $? != 0 ]; then
-        log_error "uninstalling binaries failed"
-        return 1
-    fi
-    
+    uninstall_binaries || sc=1
+   
     log_debug "uninstalling prerequisites on all nodes"
-    uninstall_prerequisites
-    if [ $? != 0 ]; then
-        log_error "uninstalling prerequisites"
-        return 1
-    fi
+    uninstall_prerequisites || sc=1
 
     log_debug "cleaning nodes"
-    clean_nodes
-    if [ $? != 0 ]; then
-        log_error "cleaning nodes failed"
-        return 1
-    fi
+    clean_nodes || sc=1
 
-    print_success "reset worker nodes succeed"
+    [ $sc = 0 ] && print_success "reset worker nodes succeed" || log_info "reset failed on some operations"
 }
  
-
 
 #################################################
 

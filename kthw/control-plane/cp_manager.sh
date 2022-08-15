@@ -22,18 +22,16 @@ set_log_level DEBUG
 
 ## global variables used by several functions
 service_ip_range=$(jq -r ".serviceIpRange" $ROOT_DATA_FILE)
-controllers=($(jq -c ".controllers[]" $ROOT_DATA_FILE))
+nodes=($(jq -c ".controllers[]" $ROOT_DATA_FILE))
 cp_home="$CP_HOME"
 username=$(jq -r ".machinesUsername" $ROOT_DATA_FILE)
 agent_script="$CP_HOME/cp_agent.sh"
 
 
-
 _compose_etcd_nodes_var() {
-    server_ips=($(jq -r ".controllers[].ip" $ROOT_DATA_FILE))
-
+    local server_ips=($(jq -r ".controllers[].ip" $ROOT_DATA_FILE))
     etcd_nodes=""
-    num_controllers=${#server_ips[@]}
+    local num_controllers=${#server_ips[@]}
 
     for i in $(seq 0 $(( $num_controllers - 1 )) ); do
         etcd_nodes="${etcd_nodes}https://${server_ips[i]}:2379"
@@ -47,9 +45,9 @@ _generate_apiserver_service_files() {
     
     local k8s_public_address=$(jq -r ".apiServerAddress.publicIp" $ROOT_DATA_FILE)
     local template=kube-apiserver.service.template
-    for controller in ${controllers[@]}; do
-        ip=$(echo $controller | jq -r ".ip")
-        name=$(echo $controller | jq -r ".name")
+    for node in ${nodes[@]}; do
+        ip=$(echo $node | jq -r ".ip")
+        name=$(echo $node | jq -r ".name")
     
         sed "s/{{INTERNAL_IP}}/${ip}/" $template | \
             sed "s@{{ETCD_NODES}}@$etcd_nodes@" | \
@@ -90,41 +88,6 @@ _patch_control_plane_agent_script() {
     chmod +x $CP_DEPLOYMENT/cp_agent.sh
 }
 
-
-## generic function to execute a function on all nodes
-# status codes of agent script:
-# 0 - success
-# 1 - failure
-# 2 - node is already ready
-# 3 - node is not ready for this action
-_execute_on_nodes() {
-    function=$1
-    
-    log_debug "executing $function on controllers"
-    for controller in ${controllers[@]}; do
-        ip=$(echo $controller | jq -r '.ip')
-        name=$(echo $controller | jq -r '.name')
-        
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip"  "sudo $agent_script $function"
-        sc=$?
-        log_debug "$name returned $sc"
-
-        if [ $sc = 1 ]; then
-            log_error "$function on $name failed !"
-            return 1
-        fi
-        if [ $sc = 2 ]; then
-            log_warning "$name is already after $function"
-            continue
-        fi
-        if [ $sc = 3 ]; then
-            log_error "$name is not ready for $function"
-            return 1
-        fi
-
-        log_info "successfully executed $function on $name"
-    done
-}
 
 
 _distribute_node() (
@@ -169,28 +132,11 @@ build() {
 }
 
 
-distribute() {
-    echo_title "distributing to nodes"
-    
-    local sc=0
-    for controller in ${controllers[@]}; do
-        local ip=$(echo $controller | jq -r ".ip")
-        local name=$(echo $controller | jq -r ".name")
-
-        _distribute_node $ip $name
-        [ $? != 0 ] && sc=1
-    done
-    
-    [ $sc = 0 ] && print_success "distributed files to nodes"
-
-    return $sc
-}
-
 clean_nodes() {
     echo_title "cleaning nodes"
-    for controller in ${controllers[@]}; do
-        name=$(echo $controller | jq -r '.name')
-        ip=$(echo $controller | jq -r '.ip')
+    for node in ${nodes[@]}; do
+        name=$(echo $node | jq -r '.name')
+        ip=$(echo $node | jq -r '.ip')
 
         local node_status
         node_status=$(ssh -i $SSH_PRIVATE_KEY $username@$ip sudo $agent_script status)
@@ -216,34 +162,34 @@ clean_nodes() {
 }
 
 install_binaries() {
-    _execute_on_nodes "install_binaries" || { log_error "install binaries failed"; return 1; } 
+    _execute_on_nodes "install_binaries" "stop" || { log_error "install binaries failed"; return 1; } 
 }
 
 uninstall_binaries() {
-    _execute_on_nodes "uninstall_binaries" || { log_error "uninstall binaries failed"; return 1; } 
+    _execute_on_nodes "uninstall_binaries" "cont" || { log_error "uninstall binaries failed"; return 1; } 
 }
 
 install_services() {
-    _execute_on_nodes "install_services" || { log_error "install services failed"; return 1; } 
+    _execute_on_nodes "install_services" "stop" || { log_error "install services failed"; return 1; } 
 }
 
 uninstall_services() {
-    _execute_on_nodes "uninstall_services" || { log_error "uninstall services failed"; return 1; } 
+    _execute_on_nodes "uninstall_services" "cont" || { log_error "uninstall services failed"; return 1; } 
 }
 
 start_services() {
-    _execute_on_nodes "start" || { log_error "start services failed"; return 1; } 
+    _execute_on_nodes "start" "stop" || { log_error "start services failed"; return 1; } 
 }
 
 stop_services() {
-    _execute_on_nodes "stop" || { log_error "stop services failed"; return 1; } 
+    _execute_on_nodes "stop" "cont" || { log_error "stop services failed"; return 1; } 
 }
 
 
 status() {    
-    for controller in ${controllers[@]}; do
-        local name=$(echo $controller | jq -r '.name')
-        local ip=$(echo $controller | jq -r '.ip')
+    for node in ${nodes[@]}; do
+        local name=$(echo $node | jq -r '.name')
+        local ip=$(echo $node | jq -r '.ip')
         local node_status
 
          # check if agent script exist
@@ -308,36 +254,23 @@ bootstrap() {
 }
 
 reset() {
-    log_debug "stopping services"
-    stop_services
-    if [ $? != 0 ]; then
-        log_error "failed to stop service"
-        return 1
-    fi
+    local sc=0
 
-    log_debug "uninstalling services on all nodes"
-    uninstall_services
-    if [ $? != 0 ]; then
-        log_error "uninstall services failed"
-        return 1
-    fi
+    log_debug "stopping service on all nodes"
+    stop_services || sc=1 
+
+    log_debug "uninstalling service on all nodes"
+    uninstall_services || sc=1
 
     log_debug "uninstalling binaries on all nodes"
-    uninstall_binaries
-    if [ $? != 0 ]; then
-        log_error "uninstalling binaries failed"
-        return 1
-    fi
+    uninstall_binaries || sc=1
 
     log_debug "cleaning nodes"
-    clean_nodes
-    if [ $? != 0 ]; then
-        log_error "cleaning nodes failed"
-        return 1
-    fi
+    clean_nodes || sc=1
 
-    print_success "reset control plane succeed"
+    [ $sc = 0 ] &&  print_success "reset etcd succeed" || log_info "reset failed on some operations"
 }
+
  
 
 #################################################

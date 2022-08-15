@@ -13,7 +13,7 @@ set_log_level "DEBUG"
 
 ## globals
 username=$(jq -r ".machinesUsername" $ROOT_DATA_FILE)
-controllers=($(jq -c ".controllers[]" $ROOT_DATA_FILE))
+nodes=($(jq -c ".controllers[]" $ROOT_DATA_FILE))
 agent_script="$ETCD_HOME/etcd_agent.sh"
 
 
@@ -49,9 +49,9 @@ _generate_service_files() {
     template=etcd.service.template
     [ -f "$template" ] || { log_error "$template file not found !"; return 1; }  
     
-    for controller in ${controllers[@]}; do
-        ip=$(echo $controller | jq -r '.ip')
-        name=$(echo $controller | jq -r '.name')
+    for node in ${nodes[@]}; do
+        ip=$(echo $node | jq -r '.ip')
+        name=$(echo $node | jq -r '.name')
 
         log_debug "creating service file for $name"
         sed "s/{{ETCD_NAME}}/$name/" $template \
@@ -64,46 +64,10 @@ _patch_agent_script() {
     [ -f "etcd_agent.sh.template" ] || { log_error "etcd_agent.sh.template file not found !"; return 1; }
 
     etcd_version=$(jq -r ".versions.etcd" $ROOT_DATA_FILE)
+    num_controllers=${#nodes[@]}
     sed "s/{{ETCD_VERSION}}/$etcd_version/" etcd_agent.sh.template | \
-        sed "s/{{NUM_CONTROLLERS}}/${#controllers[@]}/" | sed "s@{{ETCD_HOME}}@${ETCD_HOME}@" > $ETCD_DEPLOYMENT/etcd_agent.sh
+        sed "s/{{NUM_CONTROLLERS}}/$num_controllers/" | sed "s@{{ETCD_HOME}}@${ETCD_HOME}@" > $ETCD_DEPLOYMENT/etcd_agent.sh
     chmod +x $ETCD_DEPLOYMENT/etcd_agent.sh
-}
-
-## generic function to execute a function on all nodes
-# status codes of agent script:
-# 0 - success
-# 1 - failure
-# 2 - node is already ready
-# 3 - node is not ready for this action
-_execute_on_nodes() {
-    function=$1
-    
-    log_debug "executing $function on controllers"
-    for controller in ${controllers[@]}; do
-        ip=$(echo $controller | jq -r '.ip')
-        name=$(echo $controller | jq -r '.name')
-
-        log_debug "executing $function on $name"
-
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip"  "sudo $agent_script $function"
-        sc=$?
-        log_debug "$name returned $sc"
-
-        if [ $sc = 1 ]; then
-            log_error "$function on $name failed !"
-            return 1
-        fi
-        if [ $sc = 2 ]; then
-            log_warning "$name is already after $function"
-            continue
-        fi
-        if [ $sc = 3 ]; then
-            log_error "$name is not ready for $function"
-            return 1
-        fi
-
-        log_info "successfully executed $function on $name"
-    done
 }
 
 ############
@@ -149,32 +113,13 @@ build() {
 
 
 
-distribute() {
-    echo_title "distributing to nodes"
-    
-    local sc=0
-    for controller in ${controllers[@]}; do
-       
-        local ip=$(echo $controller | jq -r ".ip")
-        local name=$(echo $controller | jq -r ".name")
-
-        _distribute_node $ip $name
-        [ $? != 0 ] && sc=1
-    done
-    
-    [ $sc = 0 ] && log_info "distributed files to nodes"
-
-    return $sc
-}
-
-
 ## delete the etcd_home directory on all nodes
 # if some node is in either installed, loaded or active state, abort
 # and move to next node
 clean_nodes() {
-    for controller in ${controllers[@]}; do
-        name=$(echo $controller | jq -r '.name')
-        ip=$(echo $controller | jq -r '.ip')
+    for node in ${nodes[@]}; do
+        name=$(echo $node | jq -r '.name')
+        ip=$(echo $node | jq -r '.ip')
 
         local node_status
         node_status=$(ssh -i $SSH_PRIVATE_KEY $username@$ip sudo $agent_script status)
@@ -201,33 +146,33 @@ clean_nodes() {
 
 
 install_binaries() {
-    _execute_on_nodes "install_binaries" || { log_error "install binaries failed"; return 1; } 
+    _execute_on_nodes "install_binaries" "stop" || { log_error "install binaries failed"; return 1; } 
 }
 
 uninstall_binaries() {
-    _execute_on_nodes "uninstall_binaries" || { log_error "uninstall binaries failed"; return 1; } 
+    _execute_on_nodes "uninstall_binaries" "cont" || { log_error "uninstall binaries failed"; return 1; } 
 }
 
 install_service() {
-    _execute_on_nodes "install_service" || { log_error "install service failed"; return 1; } 
+    _execute_on_nodes "install_service" "stop" || { log_error "install service failed"; return 1; } 
 }
 
 
 uninstall_service() {
-    _execute_on_nodes "uninstall_service" || { log_error "uninstall service failed"; return 1; } 
+    _execute_on_nodes "uninstall_service" "cont" || { log_error "uninstall service failed"; return 1; } 
 }
 
 start_service() {
-    _execute_on_nodes "start" || { log_error "start service failed"; return 1; } 
+    _execute_on_nodes "start" "stop" || { log_error "start service failed"; return 1; } 
 }
 
 stop_service() {
-    _execute_on_nodes "stop" || { log_error "stop service failed"; return 1; } 
+    _execute_on_nodes "stop" "cont" || { log_error "stop service failed"; return 1; } 
 }
 
 
 test_etcd() {
-    local first_controller_ip=$(echo ${controllers[0]} | jq -r ".ip")
+    local first_controller_ip=$(echo ${nodes[0]} | jq -r ".ip")
     
     ssh -i $SSH_PRIVATE_KEY "$username@$first_controller_ip" "sudo $agent_script test"
     
@@ -240,9 +185,9 @@ test_etcd() {
 }
 
 status() {
-    for controller in ${controllers[@]}; do
-        local name=$(echo $controller | jq -r '.name')
-        local ip=$(echo $controller | jq -r '.ip')
+    for node in ${nodes[@]}; do
+        local name=$(echo $node | jq -r '.name')
+        local ip=$(echo $node | jq -r '.ip')
         local node_status
 
         # check if agent script exist
@@ -283,6 +228,7 @@ bootstrap() {
         return 1
     fi
 
+
     log_debug "installing etcd service on all nodes"
     install_service
     if [ $? != 0 ]; then
@@ -301,35 +247,21 @@ bootstrap() {
 }
 
 reset() {
-    log_debug "stopping service"
-    stop_service
-    if [ $? != 0 ]; then
-        log_error "couldn't stop service"
-        return 1
-    fi
+    local sc=0
+
+    log_debug "stopping service on all nodes"
+    stop_service || sc=1 
 
     log_debug "uninstalling service on all nodes"
-    uninstall_service
-    if [ $? != 0 ]; then
-        log_error "uninstall service failed"
-        return 1
-    fi
+    uninstall_service || sc=1
 
     log_debug "uninstalling binaries on all nodes"
-    uninstall_binaries
-    if [ $? != 0 ]; then
-        log_error "uninstalling binaries failed"
-        return 1
-    fi
+    uninstall_binaries || sc=1
 
     log_debug "cleaning nodes"
-    clean_nodes
-    if [ $? != 0 ]; then
-        log_error "cleaning nodes failed"
-        return 1
-    fi
+    clean_nodes || sc=1
 
-    print_success "reset etcd succeed"
+    [ $sc = 0 ] && print_success "reset etcd succeed" || log_info "reset failed on some operations"
 }
 
 ############################################################################

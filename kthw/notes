@@ -13,12 +13,26 @@ smoke tests
 - create a service
 
 
+kthwctl
+---------
+* bootstrap
+* reset
+* delete node
+* status
+
 consider
 -------
 * When some node fails, in the manager scripts, we stop execution
   maybe we need to make the _execute_on_nodes function configurable
   to allow continuing processing on error
 * test_networking is pretty lame, see if you can improve it
+
+
+Investigate
+-------------
+* After insatlling the network plugin once, which brings the nodes
+to a Ready state, and after deleteing the nodes and creating them again,
+  they become Ready, although I removed the weavenet pods from the cluster.
 
 Nice to have:
 -----------
@@ -55,6 +69,10 @@ intereseting
   didn't seem to change anything. is this certificate useful?
 
 
-Safe functions
---------------
+Documentation
+---------
+- introduction - some background about the project
+- architecture/structure - how it's built - folder for each part etc. manager and agent script, etc.
+- usage
+- technical details - idempotency, 
 

@@ -34,6 +34,7 @@ distribute to nodes, install binaries, etc.
 
 #### Idempotency
 We try to be idempotent as possible. This is done in the following manner:
+
 In each command, the agent will check if it's already in this state. If is,
 it will return a specific status code (2) that indicates that this action 
 is not necessary on this node. The manager script will then go on to the next node.
@@ -44,10 +45,18 @@ the agent won't try to stop it.
 
 #### What happens on error?
 We divide the commands into "positive" and "negative".
-For the positive commands, once we encounter an error, we'll try stop execution,
-trying to undo any side-effects done until that point, leaving a clean state.
+
+On the agent side:
+For the positive commands, once we encounter an error, we stop execution,
+trying to undo any side-effects done until that point, leaving a well-defined state.
 For the negative commands, we'll inform the user about the error, and if there's
 anything else to do in this command, we'll attempt to do it anyways.
 
-On the manager side, once an error occurs, or a node is not ready for the command,
-we stop execution.
+On the manager side:
+We mentioned that for each command on the agent, we have a corresponding command on the manager
+that iterates over all the nodes and executes this command.
+So for the positive commands, whenever a node fails, we don't go on to the next nodes.
+For the negative commands, we go on to the next nodes, doing a best effort to do the negative command.
+
+For example, if we run `start`, and the second node fails, we won't go on to the third node.
+But if we run `stop`, and the second node fails, we will try to stop the third node.

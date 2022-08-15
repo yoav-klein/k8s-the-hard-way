@@ -38,3 +38,104 @@ run_scp() {
     scp -i $private_key "$local_path" "$username@$machine:$remote_path"
 }
 
+
+## 
+# generic function to execute a function on all nodes
+#
+#   global variables:
+#     nodes - array of the nodes
+#     agent_script - the agent script to execute the function
+#
+#   positional parameters:
+#     1 - the name of the function to execute
+#     2 - stop/cont - what to do on error
+#   
+# status codes of agent script:
+# 0 - success
+# 1 - failure
+# 2 - node is already ready
+# 3 - node is not ready for this action
+
+
+_execute_on_nodes() {
+    function=$1
+    on_error=${2:-stop}
+    
+    declare -a failed_nodes
+    local sc=0
+
+    log_debug "executing $function on nodes"
+    for node in ${nodes[@]}; do
+        ip=$(echo $node | jq -r '.ip')
+        name=$(echo $node | jq -r '.name')
+
+        log_debug "executing $function on $name"
+
+        ssh -i $SSH_PRIVATE_KEY "$username@$ip"  "sudo $agent_script $function"
+        sc=$?
+        log_debug "$name returned $sc"
+
+        if [ $sc = 1 ]; then
+            log_error "$function on $name failed !"
+            [ $on_error = "stop" ] && return 1
+            failed_nodes+=($name)
+            continue
+        fi
+        if [ $sc = 2 ]; then
+            log_warning "$name is already after $function"
+            continue
+        fi
+        if [ $sc = 3 ]; then
+            log_error "$name is not ready for $function"
+            [ $on_error = "stop" ] && return 1 
+            failed_nodes+=($name)
+            continue
+        fi
+
+        log_info "successfully executed $function on $name"
+    done
+
+    if (( ${#failed_nodes[@]} > 0 )); then
+        print_error "The following nodes failed to execute the function $function"
+        for failed_node in ${failed_nodes[@]}; do
+            echo $failed_node
+        done
+        return 1
+    else
+        return 0
+    fi
+}
+
+
+distribute() {
+    echo_title "distributing to nodes"
+    
+    declare -a failed_nodes
+    declare -a succeed_nodes
+
+    local sc=0
+    for node in ${nodes[@]}; do   
+        local ip=$(echo $node | jq -r ".ip")
+        local name=$(echo $node | jq -r ".name")
+
+        _distribute_node $ip $name
+        [ $? = 0 ] && succeed_nodes+=($name) || { failed_nodes+=($name) && sc=1; }
+    done
+    
+    [ $sc = 0 ] && log_info "succeeded to distribute files to all nodes"
+    if (( ${#failed_nodes[@]} > 0 )); then
+        echo "succeeded to distribute fileds to the following nodes"
+        for node in ${succeed_nodes[@]}; do
+            echo $node
+        done
+
+        print_error "failed distributing to the following nodes"
+        for node in ${failed_nodes[@]}; do
+            echo $node
+        done
+        
+        return 1
+    fi
+}
+
+

@@ -1,0 +1,12 @@
+
+1.1
+----
+- Moving distribute and _execute_on_nodes to lib
+- _execute_on_nodes receives a parameter telling it whether or not to continue
+  exeuction after the operation fails on any node
+- for positive functions, passing stop to execute_on_nodes, so if the operation fails
+  on any node, we stop exeuction
+  for negative functions, we pass continue to execute_on_nodes, so we do a best effort to
+  do the negative function, and the user will need to handle the failed node
+
+

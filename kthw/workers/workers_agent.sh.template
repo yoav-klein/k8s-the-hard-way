@@ -175,7 +175,7 @@ _delete_app_directories() {
     __rmdir_if_exist "/var/lib/kube-proxy" || sc=1
     __rmdir_if_exist "/var/run/kubernetes" || sc=1
 
-    [ $?=0 ] && log_debug "app directories removed"
+    [ $sc = 0 ] && log_debug "app directories removed"
     return $sc
 }
 
@@ -318,7 +318,7 @@ uninstall_services() {
     { _delete_service_files && systemctl daemon-reload; } || { log_error "failed to remove services"; sc=1; }
     _delete_app_directories || { log_error "failed to delete app directories"; sc=1; }
     
-    [ $sc=0 ] && log_info "control plane services uninstalled"
+    [ $sc = 0 ] && log_info "workers services uninstalled"
     return $sc
 }
 
@@ -390,7 +390,7 @@ _check_services_active() {
 }
 
 _check_dirty() {
-    test -d /var/lib/kubelet || test -d /var/lib/kubernetes  \
+    test -d /var/lib/kubelet || test -d /var/lib/kubernetes || \
     test -d /var/lib/kube-proxy || test -d /var/run/kubernetes || \
     test -f /etc/systemd/system/kubelet.service || test -f /etc/systemd/system/kube-proxy.service \
     &&  echo "true" || echo "false"
