@@ -210,7 +210,11 @@ uninstall_service() {
         log_warning "service is active, stop service first"
         return 3
     fi
-    
+    if [ $(_check_dirty) = "false" ] && [ $(_check_service_loaded) = "false" ]; then
+       log_warning "service already uninstalled"
+       return 2
+    fi 
+
     local sc=0
     echo_title "uninstalling service"
     { _delete_service_file && systemctl daemon-reload; } || { log_error "failed to remove service file"; sc=1; }
