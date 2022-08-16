@@ -220,10 +220,13 @@ install_services() {
 ## as in etcd, this function is safe (idempotent)
 uninstall_services() {
     if [ "$(_check_services_active)" = "true" ]; then
-         log_warning "services are active, stop them first";
+         log_warning "services are active, stop them first"
          return 3
     fi
-    
+    if [ "$(_check_dirty)" = "false" ]; then # if not dirty, 99% that the services are uninstalled
+        log_warning "services already uninstalled"
+        return 2
+    fi
     echo_title "uninstalling services"
 
     local sc=0

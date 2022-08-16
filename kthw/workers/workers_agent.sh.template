@@ -311,6 +311,10 @@ uninstall_services() {
          log_warning "services are active, stop them first";
          return 3
     fi
+    if [ "$(_check_dirty)" = "false" ]; then # if not dirty, 99% that the services are uninstalled
+        log_warning "services already uninstalled"
+        return 2
+    fi  
     
     echo_title "uninstalling services"
 

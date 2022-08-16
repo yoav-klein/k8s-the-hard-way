@@ -210,7 +210,7 @@ uninstall_service() {
         log_warning "service is active, stop service first"
         return 3
     fi
-    if [ $(_check_dirty) = "false" ] && [ $(_check_service_loaded) = "false" ]; then
+    if [ $(_check_dirty) = "false" ]; then # if not dirty, 99% that the service is uninstalled
        log_warning "service already uninstalled"
        return 2
     fi 
