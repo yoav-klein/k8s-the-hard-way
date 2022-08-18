@@ -4,6 +4,7 @@ source ../lib
 source ../.env
 source $LOG_LIB
 
+set_log_level ${LOG_LEVEL:-INFO}
 
 gen_kubeconfig() {
     cluster_name=$1
