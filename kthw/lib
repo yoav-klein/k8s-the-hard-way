@@ -17,10 +17,6 @@ big_success() {
     echo -e "$RESET"
 }
 
-echo_title() {
-    echo -e "${TITLE} $1 ${RESET}"
-}
-
 run_scp() {
     username=$1
     machine=$2
@@ -71,12 +67,13 @@ _execute_on_nodes() {
 
         log_debug "executing $function on $name"
 
-        ssh -i $SSH_PRIVATE_KEY "$username@$ip"  "sudo $agent_script $function"
+        echo "output from $name while executing $function" > $LOG_FILE
+        ssh -i $SSH_PRIVATE_KEY "$username@$ip"  "sudo $agent_script $function" > $LOG_FILE 2>&1
         sc=$?
         log_debug "$name returned $sc"
 
         if [ $sc = 1 ]; then
-            log_error "$function on $name failed !"
+            log_error "$function on $name failed ! see $LOG_FILE"
             [ $on_error = "stop" ] && return 1
             failed_nodes+=($name)
             continue
@@ -92,7 +89,7 @@ _execute_on_nodes() {
             continue
         fi
 
-        log_info "successfully executed $function on $name"
+        log_debug "successfully executed $function on $name"
     done
 
     if (( ${#failed_nodes[@]} > 0 )); then
@@ -107,9 +104,8 @@ _execute_on_nodes() {
 }
 
 
-distribute() {
-    echo_title "distributing to nodes"
-    
+_distribute() {
+    log_debug "distributing to nodes" 
     declare -a failed_nodes
     declare -a succeed_nodes
 

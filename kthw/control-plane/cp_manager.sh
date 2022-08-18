@@ -6,7 +6,9 @@ source ../lib
 
 source $LOG_LIB
 
-set_log_level DEBUG
+set_log_level ${LOG_LEVEL:-DEBUG}
+if ! $HUMAN; then unset_human; fi
+
 
 #####
 #   
@@ -97,26 +99,25 @@ _distribute_node() (
     trap "log_error 'failed distributing to $name, cleaning..'; ssh -i $SSH_PRIVATE_KEY $username@$ip rm -rf $cp_home" ERR
     
     log_debug "distributing to $name"
-    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.crt" "$userme@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.key" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/kube-apiserver.crt" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/kube-apiserver.key" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-etcd-client.crt" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-etcd-client.key" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-kubelet-client.crt" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-kubelet-client.key" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.crt" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.key" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-scheduler.kubeconfig" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-controller-manager.kubeconfig" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/cp_agent.sh" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/encryption-config.yaml" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/kube-controller-manager.service" "$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/$name.kube-apiserver.service" "$username@$ip:$cp_home/kube-apiserver.service"
-    
-    scp -i $SSH_PRIVATE_KEY  "kube-scheduler.yaml" $"$username@$ip:$cp_home"
-    scp -i $SSH_PRIVATE_KEY  "kube-scheduler.service" $"$username@$ip:$cp_home"
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.crt" "$userme@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.key" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/kube-apiserver.crt" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/kube-apiserver.key" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-etcd-client.crt" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-etcd-client.key" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-kubelet-client.crt" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-kubelet-client.key" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.crt" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.key" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-scheduler.kubeconfig" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-controller-manager.kubeconfig" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/cp_agent.sh" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/encryption-config.yaml" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/kube-controller-manager.service" "$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/$name.kube-apiserver.service" "$username@$ip:$cp_home/kube-apiserver.service" > /dev/null
+    scp -i $SSH_PRIVATE_KEY  "kube-scheduler.yaml" $"$username@$ip:$cp_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY  "kube-scheduler.service" $"$username@$ip:$cp_home" > /dev/null
 
     log_info "distributed files to $name"
 )
@@ -124,16 +125,24 @@ _distribute_node() (
 ################################ commands functions ####################
 
 build() {
+    print_title "build: creating deployment"
     if [ ! -d "$CP_DEPLOYMENT" ]; then mkdir "$CP_DEPLOYMENT"; else rm $CP_DEPLOYMENT/*; fi
     _generate_apiserver_service_files || { log_error "failed to generate apiserver service files"; return 1;  } 
     _generate_controller_manager_service_files || { log_error "failed to generate controller-manager service files"; return 1; }
     _generate_encryption_config_file || { log_error "failed to generate encryption config file"; return 1; }
     _patch_control_plane_agent_script || { log_error "failed to generate agent script"; return 1;  }
+
+    print_success "succeed to create deployment"
 }
 
 
+distribute() {
+    print_title "distributing control plane files to nodes"
+    _distribute && print_success "succeed to distribute control plane files to nodes"
+}
+
 clean_nodes() {
-    echo_title "cleaning nodes"
+    print_title "cleaning nodes"
     for node in ${nodes[@]}; do
         name=$(echo $node | jq -r '.name')
         ip=$(echo $node | jq -r '.ip')
@@ -162,27 +171,39 @@ clean_nodes() {
 }
 
 install_binaries() {
+    print_title "installing control plane binaries on  nodes"
     _execute_on_nodes "install_binaries" "stop" || { log_error "install binaries failed"; return 1; } 
+    print_success "succeed to install control plane binaries on nodes"
 }
 
 uninstall_binaries() {
+    print_title "uninstalling control plane binaries from nodes"
     _execute_on_nodes "uninstall_binaries" "cont" || { log_error "uninstall binaries failed"; return 1; } 
+    print_success "succeed to uninstall control plane binaries from nodes"
 }
 
 install_services() {
+    print_title "installing control plane services on nodes"
     _execute_on_nodes "install_services" "stop" || { log_error "install services failed"; return 1; } 
+    print_success "uninstalling control plane services from nodes"
 }
 
 uninstall_services() {
+    print_title "uninstalling services from nodes"
     _execute_on_nodes "uninstall_services" "cont" || { log_error "uninstall services failed"; return 1; } 
+    print_success "succeed to uninstall control plane services from nodes"
 }
 
 start_services() {
+    print_title "starting control plane services on nodes"
     _execute_on_nodes "start" "stop" || { log_error "start services failed"; return 1; } 
+    print_success "succeed to start control plane services on nodes"
 }
 
 stop_services() {
+    print_title "stopping control plane services on nodes"
     _execute_on_nodes "stop" "cont" || { log_error "stop services failed"; return 1; } 
+    print_success "succeed to stop control plane services on nodes"
 }
 
 
@@ -268,7 +289,7 @@ reset() {
     log_debug "cleaning nodes"
     clean_nodes || sc=1
 
-    [ $sc = 0 ] &&  print_success "reset etcd succeed" || log_info "reset failed on some operations"
+    [ $sc = 0 ] &&  print_success "reset control plane succeed" || log_info "reset failed on some operations"
 }
 
  

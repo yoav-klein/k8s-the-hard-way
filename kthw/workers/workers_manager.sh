@@ -6,7 +6,8 @@ source ../lib
 
 source $LOG_LIB
 
-set_log_level DEBUG
+set_log_level ${LOG_LEVEL:-DEBUG}
+if ! $HUMAN; then unset_human; fi
 
 [ -f "$ROOT_DATA_FILE" ] || { log_error "root data file not found!"; exit 1 ;}
 
@@ -62,25 +63,21 @@ _distribute_node() (
     trap "log_error 'failed distributing to $name, cleaning..'; ssh -i $SSH_PRIVATE_KEY $username@$ip rm -rf $workers_home" ERR
     
     log_debug "distributing to $name"
-    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $workers_home"
-
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.crt" "$username@$ip:$workers_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/$name/kubelet.crt" "$username@$ip:$workers_home"
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/$name/kubelet.key" "$username@$ip:$workers_home"
-    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-proxy.kubeconfig" "$username@$ip:$workers_home"
-    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kubelet-$name.kubeconfig" "$username@$ip:$workers_home/kubelet.kubeconfig"
-
-    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/workers_agent.sh" "$username@$ip:$workers_home"
-    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/kubelet-config.yaml" "$username@$ip:$workers_home"
-    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/$name.kubelet.service" "$username@$ip:$workers_home/kubelet.service"
-    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/kube-proxy-config.yaml" "$username@$ip:$workers_home"
-    
-    scp -i $SSH_PRIVATE_KEY  "kube-proxy.service" $"$username@$ip:$workers_home"
-    scp -i $SSH_PRIVATE_KEY  "config.toml" $"$username@$ip:$workers_home" # configuration of containerd
-    scp -i $SSH_PRIVATE_KEY  "containerd.service" $"$username@$ip:$workers_home"
-    
-    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get update"
-    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq" 
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $workers_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.crt" "$username@$ip:$workers_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/$name/kubelet.crt" "$username@$ip:$workers_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/$name/kubelet.key" "$username@$ip:$workers_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-proxy.kubeconfig" "$username@$ip:$workers_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kubelet-$name.kubeconfig" "$username@$ip:$workers_home/kubelet.kubeconfig" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/workers_agent.sh" "$username@$ip:$workers_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/kubelet-config.yaml" "$username@$ip:$workers_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/$name.kubelet.service" "$username@$ip:$workers_home/kubelet.service" > /dev/null
+    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/kube-proxy-config.yaml" "$username@$ip:$workers_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY  "kube-proxy.service" $"$username@$ip:$workers_home" > /dev/null
+    scp -i $SSH_PRIVATE_KEY  "config.toml" $"$username@$ip:$workers_home" > /dev/null # configuration of containerd
+    scp -i $SSH_PRIVATE_KEY  "containerd.service" $"$username@$ip:$workers_home" > /dev/null
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get update" > /dev/null
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq"  > /dev/null
     log_info "distributed files to $name"
 )
 
@@ -89,7 +86,7 @@ _distribute_node() (
 
 
 build() {
-    echo_title "creating deployment"
+    print_title "build: creating deployment"
     if [ ! -d "$WORKERS_DEPLOYMENT" ]; then mkdir "$WORKERS_DEPLOYMENT"; else rm $WORKERS_DEPLOYMENT/*; fi
 
     _generate_kubelet_service_files || { log_error "failed generating kubelet service files"; return 1; }
@@ -100,10 +97,18 @@ build() {
     cluster_dns=$(cat $ROOT_DATA_FILE  | jq -r '.serviceIpRange' | sed -e 's/\([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1.10/')
     sed "s/{{CLUSTER_DNS}}/$cluster_dns/" kubelet-config.yaml.template > "$WORKERS_DEPLOYMENT/kubelet-config.yaml"
 
+    print_success "succeed to create workers deployment"
 }
 
+
+distribute() {
+    print_title "distributing workers files to nodes"
+    _distribute && print_success "succeed to distribute workers files to nodes"
+}
+
+
 clean_nodes() {
-    echo_title "cleaning nodes"
+    print_title "cleaning nodes"
     for node in ${nodes[@]}; do
         name=$(echo $node | jq -r '.name')
         ip=$(echo $node | jq -r '.ip')
@@ -133,37 +138,59 @@ clean_nodes() {
 }
 
 install_prerequisites() {
-    _execute_on_nodes "install_prerequisites" "stop" || { log_error "install prerequisites failed"; return 1; } 
+    print_title "installing workers prerequisites on nodes"
+    _execute_on_nodes "install_prerequisites" "stop" || { log_error "install prerequisites failed"; return 1; }
+    print_success "succeed to install prerequisites on nodes"
 }
 
 uninstall_prerequisites() {
+    print_title "uninstalling prerequisites from nodes"
     _execute_on_nodes "uninstall_prerequisites" "cont" || { log_error "uninstall prerequisites failed"; return 1; } 
+    print_success "succeed to uninstall prerequisites from nodes"
 }
-
 
 
 install_binaries() {
+    print_title "installing workers binaries on  nodes"
     _execute_on_nodes "install_binaries" "stop" || { log_error "install binaries failed"; return 1; } 
+    print_success "succeed to install workers binaries on nodes"
 }
 
 uninstall_binaries() {
+    print_title "uninstalling workers binaries from nodes"
     _execute_on_nodes "uninstall_binaries" "cont" || { log_error "uninstall binaries failed"; return 1; } 
+    print_success "succeed to uninstall workers binaries from nodes"
 }
 
 install_services() {
+    print_title "installing workers services on nodes"
     _execute_on_nodes "install_services" "stop" || { log_error "install services failed"; return 1; } 
+    print_success "uninstalling workers services from nodes"
 }
 
 uninstall_services() {
+    print_title "uninstalling services from nodes"
     _execute_on_nodes "uninstall_services" "cont" || { log_error "uninstall services failed"; return 1; } 
+    print_success "succeed to uninstall workers services from nodes"
 }
 
 start_services() {
+    print_title "starting workers services on nodes"
     _execute_on_nodes "start" "stop" || { log_error "start services failed"; return 1; } 
+    print_success "succeed to start workers services on nodes"
 }
 
 stop_services() {
+    print_title "stopping workers services on nodes"
     _execute_on_nodes "stop" "cont" || { log_error "stop services failed"; return 1; } 
+    print_success "succeed to stop workers services on nodes"
+}
+
+
+install_binaries() {
+    print_title "installing workers binaries on  nodes"
+    _execute_on_nodes "install_binaries" "stop" || { log_error "install binaries failed"; return 1; } 
+    print_success "succeed to install workers binaries on nodes"
 }
 
 
@@ -229,7 +256,7 @@ bootstrap() {
         return 1
     fi
 
-    log_debug "starting control plane on all nodes"
+    log_debug "starting workers on all nodes"
     start_services
     if [ $? != 0 ]; then
         log_error "failed to start services"
@@ -267,7 +294,7 @@ usage() {
     echo "Usage:"
     echo "cp_manager [build, distribute, run_on_nodes, clean_nodes, clean]"
     echo "Commands:"
-    echo "build       - Generate necessary files to run control plane on nodes"
+    echo "build       - Generate necessary files to run workers on nodes"
     echo "distribute              - Distribute the files to the nodes"
     echo "install_prerequisites   - Install containerd and rest of prerequisites"
     echo "uninstall_prerequisites - Uninstall containerd and prerequisites"
