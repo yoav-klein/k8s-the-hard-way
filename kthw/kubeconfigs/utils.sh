@@ -4,6 +4,7 @@ source ../lib
 source ../.env
 source $LOG_LIB
 
+
 gen_kubeconfig() {
     cluster_name=$1
     user_name=$2
@@ -12,7 +13,8 @@ gen_kubeconfig() {
     ca=$5
     client_cert=$6
     client_key=$7
-    
+     
+    log_info "generating $kubeconfig_path"
     if [ -z "$cluster_name" ] || [ -z "$user_name" ] || \
        [ -z "$user_name" ] || [ -z "$apiserver_ip" ] || \
        [ -z "$kubeconfig_path" ] || [ -z "$ca" ] || \
@@ -21,30 +23,29 @@ gen_kubeconfig() {
            exit 1
     fi
 
-    kubectl config set-cluster "$cluster_name" \
+    > /dev/null kubectl config set-cluster "$cluster_name" \
     --certificate-authority=$ca \
     --embed-certs=true \
     --server=https://$apiserver_ip:6443 \
     --kubeconfig=$kubeconfig_path \
     || { log_error "kubectl config set-cluster failed"; return 1; }
 
-    kubectl config set-credentials $user_name \
+    > /dev/null kubectl config set-credentials $user_name \
     --client-certificate=$client_cert \
     --client-key=$client_key \
     --embed-certs=true \
     --kubeconfig=$kubeconfig_path \
     || { log_error "kubectl config set-credentials failed"; return 1; }
 
-    kubectl config set-context default \
+    > /dev/null kubectl config set-context default \
     --cluster=$cluster_name \
     --user=$user_name \
     --kubeconfig=$kubeconfig_path \
     || { log_error "kubectl config set-cluster failed"; return 1; }
 
-    kubectl config use-context default --kubeconfig=$kubeconfig_path \
+    > /dev/null kubectl config use-context default --kubeconfig=$kubeconfig_path \
     || { log_error "kubectl config use-context failed"; return 1; }
 
-    print_success "SUCCESSFULLY generated kubeconfig $kubeconfig_path"
 
 }
 
