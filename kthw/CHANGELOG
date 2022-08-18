@@ -9,4 +9,16 @@
   for negative functions, we pass continue to execute_on_nodes, so we do a best effort to
   do the negative function, and the user will need to handle the failed node
 
+1.2 - 18/8/22
+-------------
+New logging style
 
+In the logging library, we introduced a new flag of "human" - so that
+pretty messages will be printed only if this flag is set.
+
+So in the manager scripts, we set this flag depending if the user
+runs the manager script independently we will print those messages,
+but if we run it using the kthwctl utility, it won't
+
+In addition, we redirect all the output of the agent scripts to a log file,
+so that if there's a failure, it will be recorded there so the user can examine it
