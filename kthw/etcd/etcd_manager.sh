@@ -209,9 +209,6 @@ status() {
         local ip=$(echo $node | jq -r '.ip')
         local node_status
 
-        # check if agent script exist
-        echo $agent_script
-
         if ! ssh -i $SSH_PRIVATE_KEY $username@$ip [ -f $agent_script ]; then
             echo "$name: agent script doesn't exist"
             continue
@@ -233,7 +230,6 @@ status() {
 bootstrap() {
     build || { log_error "failed creating deployment"; return 1; }
     
-    print_title "distributing etcd files"
     distribute
     if [ $? != 0 ]; then
         log_error "distribution of etcd files failed"

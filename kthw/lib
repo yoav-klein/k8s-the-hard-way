@@ -105,7 +105,6 @@ _execute_on_nodes() {
 
 
 _distribute() {
-    log_debug "distributing to nodes" 
     declare -a failed_nodes
     declare -a succeed_nodes
 
