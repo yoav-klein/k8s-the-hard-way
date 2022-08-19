@@ -95,7 +95,7 @@ _execute_on_nodes() {
     if (( ${#failed_nodes[@]} > 0 )); then
         print_error "The following nodes failed to execute the function $function"
         for failed_node in ${failed_nodes[@]}; do
-            echo $failed_node
+            print_error $failed_node
         done
         return 1
     else
