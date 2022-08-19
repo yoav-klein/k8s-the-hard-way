@@ -214,15 +214,15 @@ status() {
 }
 
 test_workers() {
-    num_workers=$(timeout 10 kubectl get nodes -ojson | jq  '.items | length')
+    num_workers=$(timeout 20 kubectl get nodes -ojson | jq  '.items | length')
     num_expected=$(jq '.workers | length' $ROOT_DATA_FILE)
     
     if (( $num_workers != $num_expected )); then
-        echo -e  "${COLOR_RED}!!! CONTROL PLANE TEST FAILED !!!${RESET}"
+        print_error "!!! WORKERS TEST FAILED !!!"
         return 1;
     fi
     
-    big_success "ALL WORKERS ARE UP AND RUNNING"
+    print_success "ALL WORKERS ARE UP AND RUNNING"
 }
 
 bootstrap() {

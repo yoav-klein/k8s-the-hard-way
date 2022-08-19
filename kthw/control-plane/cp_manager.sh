@@ -231,13 +231,13 @@ test_cp() {
     # right now, this is the best test we have
     # just run get componetstatuses and see that it returns without timeout
 
-    timeout 10 kubectl --kubeconfig $KUBECONFIGS_OUTPUT/admin.kubeconfig get cs > /dev/null 2>&1
+    timeout 20 kubectl --kubeconfig $KUBECONFIGS_OUTPUT/admin.kubeconfig get cs > /dev/null 2>&1
     if [ $? != 0 ]; then
-        echo -e  "${COLOR_RED}!!! CONTROL PLANE TEST FAILED !!!${RESET}"
+        print_error  "!!! CONTROL PLANE TEST FAILED !!!"
         return 1;
     fi
     
-    big_success "CONTROL PLANE IS UP AND RUNNING"
+    print_success "CONTROL PLANE IS UP AND RUNNING"
 }
 
 bootstrap() {
@@ -271,6 +271,11 @@ bootstrap() {
         return 1
     fi
     
+    test_cp
+    if [ $? != 0 ]; then
+        log_error "conrol plane failed !"
+        return 1
+    fi
     print_success "bootstraping control plane succeed"
 }
 
