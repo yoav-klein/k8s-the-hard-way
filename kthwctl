@@ -16,39 +16,56 @@ preflight_checks() {
     echo "kuku"
 }
 
+pushd() {
+    command pushd "$@" > /dev/null 2>&1
+}
+
+popd() {
+    command popd "$@" > /dev/null 2>&1
+}
+
 bootstrap_etcd() {
      pushd $ETCD_DIR
-    ./etcd_manager.sh build || { print_error "failed to generate etcd deployment files"; exit 1; }
-    ./etcd_manager.sh distribute || { print_error "failed to distribute etcd files to nodes"; exit 1; }
-    ./etcd_manager.sh install_binaries || { print_error "failed to install etcd binaries"; exit 1; }
-    ./etcd_manager.sh install_service || { print_error "failed to install etcd service"; exit 1;  }
-    ./etcd_manager.sh start || { print_error "failed to start etcd service"; exit 1; }
-    ./etcd_manager.sh test || { print_error "etcd test failed !"; exit 1; }
+    ./etcd_manager.sh build || { print_error "failed to generate etcd deployment files"; return 1; }
+    ./etcd_manager.sh distribute || { print_error "failed to distribute etcd files to nodes"; return 1; }
+    ./etcd_manager.sh install_binaries || { print_error "failed to install etcd binaries"; return 1; }
+    ./etcd_manager.sh install_service || { print_error "failed to install etcd service"; return 1;  }
+    ./etcd_manager.sh start || { print_error "failed to start etcd service"; return 1; }
+    ./etcd_manager.sh test || { print_error "etcd test failed !"; return 1; }
     popd
 
 }
 
 bootstrap_control_plane() {
      pushd $CP_DIR
-    ./cp_manager.sh build || { print_error "failed to generate control plane deployment files"; exit 1; }
-    ./cp_manager.sh distribute || { print_error "failed to distribute control plane files to nodes"; exit 1; }
-    ./cp_manager.sh install_binaries || { print_error "failed to install control plane binaries"; exit 1; }
-    ./cp_manager.sh install_services || { print_error "failed to install control plane services"; exit 1; }
-    ./cp_manager.sh start || { print_error "failed to start control plane services"; exit 1; }
-    ./cp_manager.sh test || { print_error "control plane test failed !"; exit 1; } 
+    ./cp_manager.sh build || { print_error "failed to generate control plane deployment files"; return 1; }
+    ./cp_manager.sh distribute || { print_error "failed to distribute control plane files to nodes"; return 1; }
+    ./cp_manager.sh install_binaries || { print_error "failed to install control plane binaries"; return 1; }
+    ./cp_manager.sh install_services || { print_error "failed to install control plane services"; return 1; }
+    ./cp_manager.sh start || { print_error "failed to start control plane services"; return 1; }
+    ./cp_manager.sh test || { print_error "control plane test failed !"; return 1; } 
     popd
 }
 
 bootstrap_workers() {
     pushd $WORKERS_DIR
-    ./workers_manager.sh build || { print_error "failed to generate workers deployment files"; exit 1; }
-    ./workers_manager.sh distribute || { print_error "failed to distribute workers files to nodes"; exit 1; }
-    ./workers_manager.sh install_prerequisites || { print_error "failed to install workers prerequisites"; exit 1;  }
-    ./workers_manager.sh install_binaries || { print_error "failed to install workers binaries"; exit 1; }
-    ./workers_manager.sh install_services || { print_error "failed to install workers services"; exit 1; }
-    ./workers_manager.sh start || { print_error "failed to start workers services"; exit 1; }
+    ./workers_manager.sh build || { print_error "failed to generate workers deployment files"; return 1; }
+    ./workers_manager.sh distribute || { print_error "failed to distribute workers files to nodes"; return 1; }
+    ./workers_manager.sh install_prerequisites || { print_error "failed to install workers prerequisites"; return 1;  }
+    ./workers_manager.sh install_binaries || { print_error "failed to install workers binaries"; return 1; }
+    ./workers_manager.sh install_services || { print_error "failed to install workers services"; return 1; }
+    ./workers_manager.sh start || { print_error "failed to start workers services"; return 1; }
     sleep 10
-    ./workers_manager.sh test || { print_error "workers test failed !" || exit 1; }
+    ./workers_manager.sh test || { print_error "workers test failed !" || return 1; }
+    popd
+}
+
+configure_networking_and_dns() {
+    pushd ${NETWORKING_DIR}
+    ./networking.sh weavenet > $LOG_FILE 2>&1 || { print_error "failed to setup networking plugin, see $LOG_FILE"; return 1; }
+    ./networking.sh coredns > $LOG_FILE 2>&1 || { print_error "failed to setup CoreDNS, see $LOG_FILE"; return 1; }
+    ./networking.sh test_networking > $LOG_FILE 2>&1 || { print_error "networking test failed, see $LOG_FILE"; return 1;  } 
+    ./networking.sh test_dns > $LOG_FILE 2>&1 || { print_error "DNS test failed, see $LOG_FILE"; return 1; }
     popd
 }
 
@@ -94,30 +111,34 @@ bootstrap() {
     pushd $CERTIFICATES_DIR
     make || { print_error "failed generating certificates"; exit 1; }
     popd
-    print_success "generating certificates succeed"
+    print_success "SUCCESS"
     
     # kubeconfigs
     print_title "2. generating kubeconfigs"
     pushd $KUBECONFIGS_DIR
     make || { print_error "failed generating kubeconfigs"; exit 1; }
     popd
-    print_success "generating kubeconfigs succeed"
+    print_success "SUCEESS"
 
     # etcd
     print_title "3. bootstrapping etcd"
-    bootstrap_etcd
-    print_success "bootstrapping etcd succeed"
+    bootstrap_etcd || { print_error "failed bootstrapping etcd cluster"; exit 1; }
+    print_success "SUCCESS"
 
     # control plane
     print_title "4. bootstraping control plane"
-    bootstrap_control_plane
-    print_success "bootstrapping control plane succeed"
+    bootstrap_control_plane || { print_error "failed bootsrapping control plane"; exit 1;  }
+    print_success "SUCCESS"
 
     # workers   
     print_title "5. bootstrapping worker nodes"
-    bootstrap_workers
-    print_success "bootstrapping workers succeed"
-
+    bootstrap_workers || { print_error "failed bootstrapping worker nodes"; exit 1;  }
+    print_success "SUCCESS"
+    
+    # networking
+    print_title "6. configuring networking and DNS"
+    configure_networking_and_dns || { print_error "failed configuring netwokring and DNS"; exit 1; } 
+    print_success "SUCCESS"
     big_success "CLUSTER IS UP AND RUNNING"
 
 }

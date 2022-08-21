@@ -15,6 +15,7 @@ CP_DIR=${KTHW_HOME}/control-plane
 CP_DEPLOYMENT=${CP_DIR}/deployment
 WORKERS_DIR=${KTHW_HOME}/workers
 WORKERS_DEPLOYMENT=${WORKERS_DIR}/deployment
+NETWORKING_DIR=${KTHW_HOME}/networking
 LOG_LIB=${KTHW_HOME}/bash/logging/logging.sh
 
 ## landing directory on remote hosts
