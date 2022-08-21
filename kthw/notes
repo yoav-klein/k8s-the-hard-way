@@ -2,10 +2,8 @@
 
 To do:
 -----
-* Consider: How to make sure that when running control-plane, etcd is already up?
-* loglevel in manager scripts should be coordinated
 * smoke tests
-* kthwctl 
+* kthwctl functions, see below
 
 smoke tests
 ------------
@@ -15,16 +13,13 @@ smoke tests
 
 kthwctl
 ---------
-* bootstrap
-* reset
-* delete node
+* bootstrap (V)
+* reset (V)
+* delete node (?)
 * status
 
 consider
 -------
-* When some node fails, in the manager scripts, we stop execution
-  maybe we need to make the _execute_on_nodes function configurable
-  to allow continuing processing on error
 * test_networking is pretty lame, see if you can improve it
 
 
@@ -52,11 +47,6 @@ Edge cases:
 
 to learn
 --------
-
-bash
-* set -e
-
-
 
 kubernetes
 * encryption config
