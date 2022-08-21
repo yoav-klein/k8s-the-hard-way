@@ -16,9 +16,8 @@ KUBECONFIGS        =admin.kubeconfig kube-controller-manager.kubeconfig kube-sch
 KUBECONFIG_TARGETS =$(patsubst %,$(KUBECONFIGS_OUTPUT)/%,$(KUBECONFIGS))
 
 
-
 all: $(KUBECONFIG_TARGETS)
-	@source $(LOG_LIB) && print_success "GENERATED KUBECONFIGS"
+	@source $(LOG_LIB) && if ! [ "$$HUMAN" = true ]; then unset_human; fi && print_success "GENERATED KUBECONFIGS"
 
 $(CERTIFICATES_OUTPUT)/%.crt:
 	@make -C $(CERTIFICATES_DIR) $@
