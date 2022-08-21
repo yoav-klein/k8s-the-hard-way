@@ -63,21 +63,21 @@ _distribute_node() (
     trap "log_error 'failed distributing to $name, cleaning..'; ssh -i $SSH_PRIVATE_KEY $username@$ip rm -rf $workers_home" ERR
     
     log_debug "distributing to $name"
-    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $workers_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.crt" "$username@$ip:$workers_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/$name/kubelet.crt" "$username@$ip:$workers_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/$name/kubelet.key" "$username@$ip:$workers_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-proxy.kubeconfig" "$username@$ip:$workers_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kubelet-$name.kubeconfig" "$username@$ip:$workers_home/kubelet.kubeconfig" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/workers_agent.sh" "$username@$ip:$workers_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/kubelet-config.yaml" "$username@$ip:$workers_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/$name.kubelet.service" "$username@$ip:$workers_home/kubelet.service" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/kube-proxy-config.yaml" "$username@$ip:$workers_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY  "kube-proxy.service" $"$username@$ip:$workers_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY  "config.toml" $"$username@$ip:$workers_home" > /dev/null # configuration of containerd
-    scp -i $SSH_PRIVATE_KEY  "containerd.service" $"$username@$ip:$workers_home" > /dev/null
-    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get update" > /dev/null
-    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq"  > /dev/null
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $workers_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.crt" "$username@$ip:$workers_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/$name/kubelet.crt" "$username@$ip:$workers_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/$name/kubelet.key" "$username@$ip:$workers_home"
+    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-proxy.kubeconfig" "$username@$ip:$workers_home"
+    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kubelet-$name.kubeconfig" "$username@$ip:$workers_home/kubelet.kubeconfig"
+    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/workers_agent.sh" "$username@$ip:$workers_home"
+    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/kubelet-config.yaml" "$username@$ip:$workers_home"
+    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/$name.kubelet.service" "$username@$ip:$workers_home/kubelet.service"
+    scp -i $SSH_PRIVATE_KEY "$WORKERS_DEPLOYMENT/kube-proxy-config.yaml" "$username@$ip:$workers_home"
+    scp -i $SSH_PRIVATE_KEY  "kube-proxy.service" $"$username@$ip:$workers_home"
+    scp -i $SSH_PRIVATE_KEY  "config.toml" $"$username@$ip:$workers_home"
+    scp -i $SSH_PRIVATE_KEY  "containerd.service" $"$username@$ip:$workers_home"
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get update"
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y jq"
     log_info "distributed files to $name"
 )
 

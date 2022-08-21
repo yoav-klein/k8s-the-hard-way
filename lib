@@ -113,8 +113,9 @@ _distribute() {
     for node in ${nodes[@]}; do   
         local ip=$(echo $node | jq -r ".ip")
         local name=$(echo $node | jq -r ".name")
-
-        _distribute_node $ip $name
+        
+        echo "distributing to $node" >> $LOG_FILE
+        _distribute_node $ip $name >> $LOG_FILE 2>&1
         [ $? = 0 ] && succeed_nodes+=($name) || { failed_nodes+=($name) && sc=1; }
     done
     

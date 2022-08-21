@@ -99,25 +99,25 @@ _distribute_node() (
     trap "log_error 'failed distributing to $name, cleaning..'; ssh -i $SSH_PRIVATE_KEY $username@$ip rm -rf $cp_home" ERR
     
     log_debug "distributing to $name"
-    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.crt" "$userme@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.key" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/kube-apiserver.crt" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/kube-apiserver.key" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-etcd-client.crt" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-etcd-client.key" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-kubelet-client.crt" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-kubelet-client.key" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.crt" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.key" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-scheduler.kubeconfig" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-controller-manager.kubeconfig" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/cp_agent.sh" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/encryption-config.yaml" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/kube-controller-manager.service" "$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/$name.kube-apiserver.service" "$username@$ip:$cp_home/kube-apiserver.service" > /dev/null
-    scp -i $SSH_PRIVATE_KEY  "kube-scheduler.yaml" $"$username@$ip:$cp_home" > /dev/null
-    scp -i $SSH_PRIVATE_KEY  "kube-scheduler.service" $"$username@$ip:$cp_home" > /dev/null
+    ssh -i $SSH_PRIVATE_KEY "$username@$ip" "mkdir -p $cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.crt" "$userme@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/ca.key" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/kube-apiserver.crt" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/kube-apiserver.key" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-etcd-client.crt" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-etcd-client.key" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-kubelet-client.crt" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/apiserver-kubelet-client.key" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.crt" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CERTIFICATES_OUTPUT/service-accounts.key" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-scheduler.kubeconfig" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$KUBECONFIGS_OUTPUT/kube-controller-manager.kubeconfig" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/cp_agent.sh" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/encryption-config.yaml" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/kube-controller-manager.service" "$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY "$CP_DEPLOYMENT/$name.kube-apiserver.service" "$username@$ip:$cp_home/kube-apiserver.service"
+    scp -i $SSH_PRIVATE_KEY  "kube-scheduler.yaml" $"$username@$ip:$cp_home"
+    scp -i $SSH_PRIVATE_KEY  "kube-scheduler.service" $"$username@$ip:$cp_home"
 
     log_info "distributed files to $name"
 )
