@@ -6,6 +6,7 @@ TITLE="\e[0;44m"
 YELLOW="\e[33;1m"
 
 big_success() {
+    if ! [ "$HUMAN" = true ]; then return; fi
     echo -e "$GREEN"
     echo "###############################################"
     echo "#"

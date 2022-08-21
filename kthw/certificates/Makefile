@@ -36,7 +36,7 @@ TITLE=\e[0;44m
 RESET=\e[0m
 
 define echo_title
-    echo -e "$(TITLE)=== $(1) $(RESET)"
+	if [ "$$HUMAN" = true ]; then echo -e "$(TITLE)=== $(1) $(RESET)"; fi
 endef
 
 all: $(CERT_TARGETS)
@@ -54,7 +54,7 @@ ssl:
 
 $(CERTIFICATES_OUTPUT)/ca.crt: ssl
 	@$(call echo_title, "generating $@")
-	@source $(SSL_COMMON) && gen_ca_cert $(basename $@) $(CONFIG_FILES_BASE)/ca.conf
+	@source $(SSL_COMMON) && gen_ca_cert $(basename $@) $(CONFIG_FILES_BASE)/ca.conf > /dev/null 2>&1
 
 
 $(CERTIFICATES_OUTPUT)/admin.crt: $(CERTIFICATES_OUTPUT)/ca.crt $(CONFIG_FILES_BASE)/admin.conf
@@ -126,7 +126,7 @@ $(TMP)/%.conf: $(ROOT_DATA_FILE) | $(TMP)
 # etcd CA certificate
 $(CERTIFICATES_OUTPUT)/ca-etcd.crt: ssl
 	@$(call echo_title, "generating $@")
-	@source $(SSL_COMMON) && gen_ca_cert $(basename $@) $(CONFIG_FILES_BASE)/ca-etcd.conf
+	@source $(SSL_COMMON) && gen_ca_cert $(basename $@) $(CONFIG_FILES_BASE)/ca-etcd.conf > /dev/null 2>&1
 
 $(TMP)/etcd-server-%.conf: $(ROOT_DATA_FILE) | $(TMP)
 	@$(call echo_title, "generating $@")

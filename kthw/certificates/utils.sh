@@ -48,16 +48,17 @@ gen_certificate_generic() {
         echo "gen_certificate_regular: Usage: gen_certificate_regular <name> <ca_cert> <ca_key> [conf_file_path]"
         exit 1
     fi
-    
+     
     gen_private_key "$name.key" > /dev/null 2>&1 || { log_error "failed generating key $name.key"; return 1; } 
-    gen_sign_request "$name.key" "$name.csr" "$conf_file_path" || { log_error "failed generating csr $name.csr"return 1; }
+    gen_sign_request "$name.key" "$name.csr" "$conf_file_path" > $LOG_FILE 2>&1 || \
+        { log_error "failed generating csr $name.csr, see $LOG_FILE"; return 1; }
     
     if [ -n "$extensions" ]; then 
-        sign_request "$name.csr" $ca_cert $ca_key "$name.crt" $conf_file_path $extensions || \
-            { log_error "failed signing certificate $name.csr"; return 1; }
+        sign_request "$name.csr" $ca_cert $ca_key "$name.crt" $conf_file_path $extensions > $LOG_FILE 2>&1  || \
+            { log_error "failed signing certificate $name.csr, see $LOG_FILE"; return 1; }
     else 
-        sign_request "$name.csr" $ca_cert $ca_key "$name.crt" || \
-            { log_error "failed signing certificate $name.csr"; return 1; }
+        sign_request "$name.csr" $ca_cert $ca_key "$name.crt"  > $LOG_FILE 2>&1 || \
+            { log_error "failed signing certificate $name.csr, see $LOG_FILE"; return 1; }
     fi
     
     rm "$name.csr"
