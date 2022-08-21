@@ -1,0 +1,155 @@
+#!/bin/bash
+
+#!/bin/bash
+
+[ ! -f ./.env ] && { echo "run configure.sh first"; exit 1; }
+
+source ./lib
+source ./.env
+source $LOG_LIB
+
+export HUMAN=false
+export LOG_LEVEL=warning
+
+preflight_checks() {
+    # verify data.json
+    echo "kuku"
+}
+
+bootstrap_etcd() {
+     pushd $ETCD_DIR
+    ./etcd_manager.sh build || { print_error "failed to generate etcd deployment files"; exit 1; }
+    ./etcd_manager.sh distribute || { print_error "failed to distribute etcd files to nodes"; exit 1; }
+    ./etcd_manager.sh install_binaries || { print_error "failed to install etcd binaries"; exit 1; }
+    ./etcd_manager.sh install_service || { print_error "failed to install etcd service"; exit 1;  }
+    ./etcd_manager.sh start || { print_error "failed to start etcd service"; exit 1; }
+    ./etcd_manager.sh test || { print_error "etcd test failed !"; exit 1; }
+    popd
+
+}
+
+bootstrap_control_plane() {
+     pushd $CP_DIR
+    ./cp_manager.sh build || { print_error "failed to generate control plane deployment files"; exit 1; }
+    ./cp_manager.sh distribute || { print_error "failed to distribute control plane files to nodes"; exit 1; }
+    ./cp_manager.sh install_binaries || { print_error "failed to install control plane binaries"; exit 1; }
+    ./cp_manager.sh install_services || { print_error "failed to install control plane services"; exit 1; }
+    ./cp_manager.sh start || { print_error "failed to start control plane services"; exit 1; }
+    ./cp_manager.sh test || { print_error "control plane test failed !"; exit 1; } 
+    popd
+}
+
+bootstrap_workers() {
+    pushd $WORKERS_DIR
+    ./workers_manager.sh build || { print_error "failed to generate workers deployment files"; exit 1; }
+    ./workers_manager.sh distribute || { print_error "failed to distribute workers files to nodes"; exit 1; }
+    ./workers_manager.sh install_prerequisites || { print_error "failed to install workers prerequisites"; exit 1;  }
+    ./workers_manager.sh install_binaries || { print_error "failed to install workers binaries"; exit 1; }
+    ./workers_manager.sh install_services || { print_error "failed to install workers services"; exit 1; }
+    ./workers_manager.sh start || { print_error "failed to start workers services"; exit 1; }
+    sleep 10
+    ./workers_manager.sh test || { print_error "workers test failed !" || exit 1; }
+    popd
+}
+
+reset_workers() {
+    local sc=0
+     pushd $WORKERS_DIR
+    ./workers_manager.sh stop || { print_error "failed to stop workers"; sc=1; }
+    ./workers_manager.sh uninstall_services ||{ print_error "failed to uninstall workers services"; sc=1; }
+    ./workers_manager.sh uninstall_binaries ||{ print_error "failed to unisntall workers binaries"; sc=1; }
+    ./workers_manager.sh uninstall_prerequisites || { print_error "failed to uninstall workers prerequisites"; sc=1; }
+    ./workers_manager.sh clean_nodes || { print_error "failed to clean worker nodes"; sc=1; }
+    popd
+    return $sc
+    
+}
+
+reset_control_plane() {
+    local sc=0
+    pushd $CP_DIR
+    ./cp_manager.sh stop || { print_error "failed to stop conrtol plane"; sc=1; }
+    ./cp_manager.sh uninstall_services || { print_error "failed to uninstall control plane services"; sc=1; }
+    ./cp_manager.sh uninstall_binaries || { print_error "failed to unisntall control plane binaries"; sc=1; }
+    ./cp_manager.sh clean_nodes || { print_error "failed to clean control plane nodes"; sc=1; }
+    popd
+    return $sc
+}
+
+reset_etcd() {
+    local sc=0
+    pushd $ETCD_DIR
+    ./etcd_manager.sh stop || { print_error "failed to stop etcd"; sc=1; }
+    ./etcd_manager.sh uninstall_service || { print_error "failed to uninstall etcd services"; sc=1; }
+    ./etcd_manager.sh uninstall_binaries || { print_error "failed to unisntall etcd binaries"; sc=1; }
+    ./etcd_manager.sh clean_nodes || { print_error "failed to clean etcd from nodes"; sc=1; }
+    popd
+    return $sc
+}
+
+bootstrap() {
+    preflight-checks
+    # certificates
+    print_title "1. generating certificates"
+    pushd $CERTIFICATES_DIR
+    make || { print_error "failed generating certificates"; exit 1; }
+    popd
+    print_success "generating certificates succeed"
+    
+    # kubeconfigs
+    print_title "2. generating kubeconfigs"
+    pushd $KUBECONFIGS_DIR
+    make || { print_error "failed generating kubeconfigs"; exit 1; }
+    popd
+    print_success "generating kubeconfigs succeed"
+
+    # etcd
+    print_title "3. bootstrapping etcd"
+    bootstrap_etcd
+    print_success "bootstrapping etcd succeed"
+
+    # control plane
+    print_title "4. bootstraping control plane"
+    bootstrap_control_plane
+    print_success "bootstrapping control plane succeed"
+
+    # workers   
+    print_title "5. bootstrapping worker nodes"
+    bootstrap_workers
+    print_success "bootstrapping workers succeed"
+
+    big_success "CLUSTER IS UP AND RUNNING"
+
+}
+
+reset() {
+    # clean all reousrces in the cluster
+    print_title "resetting workers"
+    reset_workers && print_success "resetting workers succeed"
+    
+    print_title "resetting control plane"
+    reset_control_plane && print_success "resetting control plane succeed"
+
+    print_title "resetting etcd"
+    reset_etcd && print_success "resetting etcd succeed"
+}
+
+cmd=$1
+
+
+usage() {
+    echo "kthwctl <command>"
+    echo ""
+    echo "commands:"
+    echo "bootstrap  - bootstrap the cluster"
+    echo "reset      - delete everything, leaving no mark of the cluster"
+    echo "status     - get the status of the cluster"
+}
+
+case $cmd in
+    bootstrap) bootstrap;;
+    reset) reset;;
+    status) status;;
+    *) usage;;
+esac
+
