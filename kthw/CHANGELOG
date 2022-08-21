@@ -22,3 +22,11 @@ but if we run it using the kthwctl utility, it won't
 
 In addition, we redirect all the output of the agent scripts to a log file,
 so that if there's a failure, it will be recorded there so the user can examine it
+
+1.2.1 - 21/8/22
+---------------
+Certificates revisited
+
+- Redirecting the output of the ssl commands to the log file, so that upon error the user 
+  is refered to the log file.
+- Adding a HUMAN environment variable check, so that only if true, printing pretty output to the user
