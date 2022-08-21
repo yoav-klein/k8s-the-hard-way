@@ -104,7 +104,7 @@ patch_kubelet_config_file() {
     root_data_file=$4
     if [ -z "$node_name" ] || [ -z "$destination" ] || [ -z "$conf_template" ] || [ -z "$root_data_file" ]; then
         echo "Usage: patch_kubelet_config_file <node_name> <destination> <conf_template> <root_data_file>"
-        exit 1
+        return 1
     fi
 
     node_data=$(jq -c  ".workers[] | select(.name | contains(\"$node_name\"))" $root_data_file)
