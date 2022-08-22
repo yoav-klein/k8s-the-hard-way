@@ -71,4 +71,4 @@ There is absolutely no guarantee about using this project in production.
 
 * Reset doesn't work - currently, after running some pods in the cluster (which happens during the "configure networking" step),
   it is not possible to reset the worker nodes - i.e. - to clean all the directories created, due to some mounts that the kubelet performs.
-
+* Leaving junk on nodes - we install some prerequisites such as `make`, `jq`, and maybe some other tools on some of the nodes. This is not cleaned up.
