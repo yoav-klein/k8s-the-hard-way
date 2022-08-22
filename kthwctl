@@ -105,7 +105,7 @@ reset_etcd() {
 }
 
 bootstrap() {
-    preflight-checks
+    preflight_checks
     # certificates
     print_title "1. generating certificates"
     pushd $CERTIFICATES_DIR
