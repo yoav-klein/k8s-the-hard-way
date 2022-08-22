@@ -56,6 +56,12 @@ These are the fields in the file:
 | `apiServerAddress.clusterIp` | The cluster IP of the API server. This must be within the range of the `serviceIpRange`, and should generally be the first in that range. |
 | `versions` |  the versions of the different tools used in the cluster |
 
+NOTE about `apiServerAddress.publicIp`: Although it is called `publicIp` it doesn't have to be necessarily public.  
+This is the one that goes to the admin kubeconfig - i.e. - this is what you'll use when you'll run `kubectl`.
+If you want to use `kubectl` from a remote machine which is not in the cluster's private network, this IP should be the public IP
+that your controller node (if single) or load balancer (if multi) is accessible with. But if you only plan to use 
+this in the private network, this may be a private IP also.
+
 ## Configure
 ---
 
