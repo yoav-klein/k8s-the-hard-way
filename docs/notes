@@ -4,6 +4,7 @@ To do:
 -----
 * smoke tests
 * kthwctl functions, see below
+* Infrastructure directory which creates infrastructure in Azure
 
 smoke tests
 ------------
@@ -34,4 +35,4 @@ Nice to have:
 * before scp to nodes, check if already exist
 * jsonschema
 * implementing CNI plugin
-
+* CI pipeline
