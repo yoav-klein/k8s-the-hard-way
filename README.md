@@ -62,6 +62,11 @@ See the [Technical Details](docs/TECHNICAL.md) page for further details.
 See the [User Guide](docs/USERGUIDE.md) page for instructions about how to use this tool.
 
 
+## Disclaimer
+This project is for educational purposes only. It is highly recommended to NOT use this as a production-level
+kubernetes cluster and instead use a well-known kubernees installer such as kubeadm or such. 
+There is absolutely no guarantee about using this project in production.
+
 ## Known Issues
 
 * Reset doesn't work - currently, after running some pods in the cluster (which happens during the "configure networking" step),
