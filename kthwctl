@@ -155,6 +155,11 @@ reset() {
     reset_etcd && print_success "resetting etcd succeed"
 }
 
+
+status() {
+    echo "status: currently unavailable"
+}
+
 cmd=$1
 
 

@@ -35,34 +35,3 @@ Nice to have:
 * jsonschema
 * implementing CNI plugin
 
-limitations:
--------------
-* leaving nodes with jq installed
-
-Edge cases:
-----------
-- After running something in the cluster, trying to kubelet reset
-  fails
-
-
-to learn
---------
-
-kubernetes
-* encryption config
-* cluster networking
-* authorization modes
-
-intereseting
----------
-* changing the CN and O in the apiserver-kubelet-client
-  didn't seem to change anything. is this certificate useful?
-
-
-Documentation
----------
-- introduction - some background about the project
-- architecture/structure - how it's built - folder for each part etc. manager and agent script, etc.
-- usage
-- technical details - idempotency, 
-
