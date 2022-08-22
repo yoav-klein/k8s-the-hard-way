@@ -60,3 +60,11 @@ See the [Technical Details](docs/TECHNICAL.md) page for further details.
 ## Usage
 
 See the [User Guide](docs/USERGUIDE.md) page for instructions about how to use this tool.
+
+
+## Known Issues
+---
+
+* Reset doesn't work - currently, after running some pods in the cluster (which happens during the "configure networking" step),
+  it is not possible to reset the worker nodes - i.e. - to clean all the directories created, due to some mounts that the kubelet performs.
+
