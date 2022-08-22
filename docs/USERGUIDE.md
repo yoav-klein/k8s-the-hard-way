@@ -103,8 +103,14 @@ the `data.json` file correctly. Make sure you filled in the IPs of your machines
 
 You can always try running `kthwctl bootstrap` again. it's safe - steps that are already taken will not be taken again.
 
-If that didn't work, go with baby steps. Note what step the failure occured in, cd into the corresponding directory, and follow the instructions
-in the directory to complete the step. This will give you a better understanding of what exactly went wrong.
+This project is built in a gradualy manner: There's the `kthwctl` script that uses the "manager" scripts: `etcd_manager.sh`, `cp_manager.sh`, etc.
+In turn, each of the manager scripts activate an `agent` script which resides on the nodes. If you need to pin a specific problem,
+you can always go down the hierarchy and use those scripts to find exactly where the problem is.
+
+So if you have a problem bootstrapping the control plane for example, and you want to try again 
+without going through the whole process of generating the certificates, kubeconfigs, etc. (i.e. kthwctl) ,
+you can use the `cp_manager.sh`. If you're having a problem with a specific node, you can SSH into that node
+and use the `cp_agent.sh` on that node.
 
 ## kthwctl
 ---
