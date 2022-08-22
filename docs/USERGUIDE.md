@@ -43,19 +43,20 @@ This file needs to contain all the details needed to bootstrap the cluster: IPs 
 versions of the tools, etc.
 
 These are the fields in the file:
-
-`machinesUsername` - the username in all the machines, as mentioned above.
-`clusterName` - not very important
-`clusterCidr` - the IP range for pods in the cluster. Recommended to leave it as is.
-`serviceIpRange` - IP range for services in the cluster. Recommended to leave it as is.
-`workers` - a list of worker nodes. For each one, fill in a name, IP address, and domain name that the node is accessible with.
-`controllers` - a list of controller nodes, same as workers.
-`apiServerAddress` - This contains the following bits:
+| Field | Explanation |
+|-------|-------------|
+|`machinesUsername` | the username in all the machines, as mentioned above |
+| `clusterName` | not very important actually |
+| `clusterCidr` | the IP range for pods in the cluster. Recommended to leave it as is |
+| `serviceIpRange` | IP range for services in the cluster. Recommended to leave it as is |
+| `workers` |  a list of worker nodes. For each one, fill in a name, IP address, and domain name that the node is accessible with |
+| `controllers` |  a list of controller nodes, same as workers |
+| `apiServerAddress` | This contains the following bits:
   - `publicIp` - the IP of the API server. In a single-controller cluster, this is the IP of the controller node. In a multi-controller cluster, this is the IP of the load balancer that load-balances the API servers.
   - `hostname` - The domain name of the API server. Same as for the IP about single- or multi-controller clusters.
   - `clusterIp` - The cluster IP of the API server. This must be within the range of the `serviceIpRange`, and should generally be the first
-                  in that range.
-`versions` - the versions of the different tools used in the cluster.
+                  in that range. |
+| `versions` |  the versions of the different tools used in the cluster |
 
 ## Configure
 ---
