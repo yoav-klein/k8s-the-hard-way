@@ -8,7 +8,6 @@ source ./lib
 source ./.env
 source $LOG_LIB
 
-export HUMAN=false
 export LOG_LEVEL=warning
 
 preflight_checks() {
@@ -24,46 +23,75 @@ popd() {
     command popd "$@" > /dev/null 2>&1
 }
 
+_print_action() {
+    echo -e "\e[34;1m$1\e[0m"
+
+}
+
+_perform_action() {
+    manager=$1
+    cmd=$2
+    msg=$3
+
+    _print_action "$msg"
+    HUMAN=false $manager $cmd &
+    local action_pid=$!
+
+    while ps -p $action_pid > /dev/null; do
+        printf "."
+        sleep 1
+    done
+    printf "\n"
+    wait $action_pid || { print_error "failed $msg"; return 1; }
+    
+}
+
 bootstrap_etcd() {
-     pushd $ETCD_DIR
-    ./etcd_manager.sh build || { print_error "failed to generate etcd deployment files"; return 1; }
-    ./etcd_manager.sh distribute || { print_error "failed to distribute etcd files to nodes"; return 1; }
-    ./etcd_manager.sh install_binaries || { print_error "failed to install etcd binaries"; return 1; }
-    ./etcd_manager.sh install_service || { print_error "failed to install etcd service"; return 1;  }
-    ./etcd_manager.sh start || { print_error "failed to start etcd service"; return 1; }
-    ./etcd_manager.sh test || { print_error "etcd test failed !"; return 1; }
+    pushd $ETCD_DIR
+    _perform_action "./etcd_manager.sh" "build" "generating deployment files" || return 1;
+    _perform_action "./etcd_manager.sh" "distribute" "distributing files to nodes" || return 1;
+    _perform_action "./etcd_manager.sh" "install_binaries" "installing etcd binaries on nodes" || return 1;
+    _perform_action "./etcd_manager.sh" "install_service" "installing etcd service on nodes" || return 1;
+    _perform_action "./etcd_manager.sh" "start" "starting service" || return 1;
+    
+    HUMAN=false ./etcd_manager.sh test || { print_error "etcd test failed !"; return 1; }
     popd
 
 }
 
 bootstrap_control_plane() {
-     pushd $CP_DIR
-    ./cp_manager.sh build || { print_error "failed to generate control plane deployment files"; return 1; }
-    ./cp_manager.sh distribute || { print_error "failed to distribute control plane files to nodes"; return 1; }
-    ./cp_manager.sh install_binaries || { print_error "failed to install control plane binaries"; return 1; }
-    ./cp_manager.sh install_services || { print_error "failed to install control plane services"; return 1; }
-    ./cp_manager.sh start || { print_error "failed to start control plane services"; return 1; }
-    ./cp_manager.sh test || { print_error "control plane test failed !"; return 1; } 
+    pushd $CP_DIR
+    _perform_action "./cp_manager.sh" "build" "generating deployment files" || return 1;
+    _perform_action "./cp_manager.sh" "distribute" "distributing files to nodes" || return 1;
+    _perform_action "./cp_manager.sh" "install_binaries" "installing control plane binaries on nodes" || return 1;
+    _perform_action "./cp_manager.sh" "install_services" "installing control plane services on nodes" || return 1;
+    _perform_action "./cp_manager.sh" "start" "starting services" || return 1;
+    
+    HUMAN=false ./cp_manager.sh test || { print_error "control plane test failed !"; return 1; }
     popd
+
 }
 
 bootstrap_workers() {
     pushd $WORKERS_DIR
-    ./workers_manager.sh build || { print_error "failed to generate workers deployment files"; return 1; }
-    ./workers_manager.sh distribute || { print_error "failed to distribute workers files to nodes"; return 1; }
-    ./workers_manager.sh install_prerequisites || { print_error "failed to install workers prerequisites"; return 1;  }
-    ./workers_manager.sh install_binaries || { print_error "failed to install workers binaries"; return 1; }
-    ./workers_manager.sh install_services || { print_error "failed to install workers services"; return 1; }
-    ./workers_manager.sh start || { print_error "failed to start workers services"; return 1; }
+    _perform_action "./workers_manager.sh" "build" "generating deployment files" || return 1;
+    _perform_action "./workers_manager.sh" "distribute" "distributing files to nodes" || return 1;
+    _perform_action "./workers_manager.sh" "install_prerequisites" "installing prerequisites on  nodes" || return 1;
+    _perform_action "./workers_manager.sh" "install_binaries" "installing worker binaries on nodes" || return 1;
+    _perform_action "./workers_manager.sh" "install_services" "installing worker services on nodes" || return 1;
+    _perform_action "./workers_manager.sh" "start" "starting services" || return 1;
     sleep 10
-    ./workers_manager.sh test || { print_error "workers test failed !" || return 1; }
+    HUMAN=false ./workers_manager.sh test || { print_error "workers test failed !"; return 1; }
     popd
+
 }
+
 
 configure_networking_and_dns() {
     pushd ${NETWORKING_DIR}
     ./networking.sh weavenet > $LOG_FILE 2>&1 || { print_error "failed to setup networking plugin, see $LOG_FILE"; return 1; }
     ./networking.sh coredns > $LOG_FILE 2>&1 || { print_error "failed to setup CoreDNS, see $LOG_FILE"; return 1; }
+    sleep 5  # give some time
     ./networking.sh test_networking > $LOG_FILE 2>&1 || { print_error "networking test failed, see $LOG_FILE"; return 1;  } 
     ./networking.sh test_dns > $LOG_FILE 2>&1 || { print_error "DNS test failed, see $LOG_FILE"; return 1; }
     popd
