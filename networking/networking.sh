@@ -21,9 +21,11 @@ setup_coredns() {
 }
 
 setup_weavenet() {
-    cluster_cidr=$(jq -r ".clusterCidr" $ROOT_DATA_FILE)
-    weavenet_url="https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')&env.IPALLOC_RANGE=${cluster_cidr}"
-    kubectl apply -f $weavenet_url
+    local template=weavenet.yaml.template
+    local cluster_cidr=$(jq -r ".clusterCidr" $ROOT_DATA_FILE)
+    sed "s@{{CLUSTER_IP}}@$cluster_ip@" $template > weavenet.yaml
+    
+    kubectl apply -f weavenet.yaml
 }
 
 test_networking() { 
