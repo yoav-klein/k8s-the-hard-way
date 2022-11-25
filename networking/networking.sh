@@ -23,7 +23,7 @@ setup_coredns() {
 setup_weavenet() {
     local template=weavenet.yaml.template
     local cluster_cidr=$(jq -r ".clusterCidr" $ROOT_DATA_FILE)
-    sed "s@{{CLUSTER_IP}}@$cluster_ip@" $template > weavenet.yaml
+    sed "s@{{CLUSTER_CIDR}}@$cluster_ip@" $template > weavenet.yaml
     
     kubectl apply -f weavenet.yaml
 }
