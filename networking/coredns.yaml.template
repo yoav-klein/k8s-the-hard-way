@@ -72,6 +72,7 @@ data:
         loop
         reload
         loadbalance
+        forward . /etc/resolv.conf
     }
 ---
 apiVersion: apps/v1

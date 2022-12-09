@@ -15,3 +15,4 @@ clusterDNS:
 runtimeRequestTimeout: "15m"
 tlsCertFile: "/var/lib/kubelet/kubelet.crt"
 tlsPrivateKeyFile: "/var/lib/kubelet/kubelet.key"
+resolvConf: /run/systemd/resolve/resolv.conf
